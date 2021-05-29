@@ -93,7 +93,7 @@ extern void make_attribute(void)
     debug_location_beginning beginning_debug_location =
         get_token_location_beginning();
 
- if (!glulx_mode) { 
+ if (target_machine == TARGET_ZCODE) { 
     if (no_attributes==((version_number==3)?32:48))
     {   discard_token_location(beginning_debug_location);
         if (version_number==3)
@@ -179,7 +179,7 @@ extern void make_property(void)
     debug_location_beginning beginning_debug_location =
         get_token_location_beginning();
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if (no_properties==((version_number==3)?32:64))
         {   discard_token_location(beginning_debug_location);
             if (version_number==3)
@@ -1532,7 +1532,7 @@ the names '%s' and '%s' actually refer to the same property",
 
 static void properties_segment(int this_segment)
 {
-  if (!glulx_mode)
+  if (target_machine == TARGET_ZCODE)
     properties_segment_z(this_segment);
   else
     properties_segment_g(this_segment);
@@ -1578,7 +1578,7 @@ static void attributes_segment(void)
         attribute_number = svals[token_value];
         sflags[token_value] |= USED_SFLAG;
 
-        if (!glulx_mode) {
+        if (target_machine == TARGET_ZCODE) {
             bitmask = (1 << (7-attribute_number%8));
             attrbyte = &(full_object.atts[attribute_number/8]);
         }
@@ -1622,7 +1622,7 @@ static void add_class_to_inheritance_list(int class_number)
 
     /*  Inheriting attributes from the class at once:                        */
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         for (i=0; i<6; i++)
             full_object.atts[i]
                 |= properties_table[class_begins_at[class_number-1] - 6 + i];
@@ -1722,7 +1722,7 @@ object/class definition but found", token_text);
 static void initialise_full_object(void)
 {
   int i;
-  if (!glulx_mode) {
+  if (target_machine == TARGET_ZCODE) {
     full_object.l = 0;
     full_object.atts[0] = 0;
     full_object.atts[1] = 0;
@@ -1787,7 +1787,7 @@ inconvenience, please contact the maintainers.");
     assign_symbol(token_value, class_number, CLASS_T);
     classname_text = (char *) symbs[token_value];
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if (metaclass_flag) sflags[token_value] |= SYSTEM_SFLAG;
     }
     else {
@@ -1812,7 +1812,7 @@ inconvenience, please contact the maintainers.");
         the inheritance property of any object inheriting from the class,
         since property 2 is always set to "additive" -- see below)           */
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
       full_object.l = 1;
       full_object.pp[0].num = 2;
       full_object.pp[0].l = 1;
@@ -1874,7 +1874,7 @@ inconvenience, please contact the maintainers.");
         debug_file_printf("</class>");
     }
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
       manufacture_object_z();
     else
       manufacture_object_g();
@@ -2075,7 +2075,7 @@ extern void make_object(int nearby_flag,
                 if ((!module_switch) && (i<4))
                     continue;
 
-                if (!glulx_mode) {
+                if (target_machine == TARGET_ZCODE) {
                     if (objectsz[i].parent == 1)
                         continue;
                     while (objectsz[j].parent != 0)
@@ -2125,7 +2125,7 @@ extern void make_object(int nearby_flag,
         debug_file_printf("</object>");
     }
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
       manufacture_object_z();
     else
       manufacture_object_g();
@@ -2154,7 +2154,7 @@ extern void objects_begin_pass(void)
     properties_table_size=0;
     prop_is_long[1] = TRUE; prop_is_additive[1] = TRUE;            /* "name" */
     prop_is_long[2] = TRUE; prop_is_additive[2] = TRUE;  /* inheritance prop */
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         prop_is_long[3] = TRUE; prop_is_additive[3] = FALSE;
                                          /* instance variables table address */
     no_properties = 4;
@@ -2177,7 +2177,7 @@ extern void objects_begin_pass(void)
     else no_attributes = 0;
 
     no_objects = 0;
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         objectsz[0].parent = 0; objectsz[0].child = 0; objectsz[0].next = 0;
         no_individual_properties=72;
     }
@@ -2220,7 +2220,7 @@ extern void objects_allocate_arrays(void)
     defined_this_segment  = my_calloc(sizeof(int), defined_this_segment_size,
                                 "defined this segment table");
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
       objectsz            = my_calloc(sizeof(objecttz), MAX_OBJECTS, 
                                 "z-objects");
     }
@@ -2255,7 +2255,7 @@ extern void objects_free_arrays(void)
 
     my_free(&defined_this_segment,"defined this segment table");
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         my_free(&full_object_g.props, "object property list");
         my_free(&full_object_g.propdata, "object property data table");
     }

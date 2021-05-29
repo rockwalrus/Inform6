@@ -124,13 +124,15 @@ static void set_label_offset(int label, int32 offset)
 
 extern void set_constant_ot(assembly_operand *AO)
 {
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
     if (AO->value >= 0 && AO->value <= 255)
       AO->type = SHORT_CONSTANT_OT;
     else
       AO->type = LONG_CONSTANT_OT;
-  }
-  else {
+    break;
+
+    case TARGET_GLULX:
     if (AO->value == 0)
       AO->type = ZEROCONSTANT_OT;
     else if (AO->value >= -0x80 && AO->value < 0x80)
@@ -139,31 +141,43 @@ extern void set_constant_ot(assembly_operand *AO)
       AO->type = HALFCONSTANT_OT;
     else
       AO->type = CONSTANT_OT;
+    break;
+
+    case TARGET_WASM:
+    WABORT;
   }
 }
 
 extern int is_constant_ot(int otval)
 {
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
     return ((otval == LONG_CONSTANT_OT) 
       || (otval == SHORT_CONSTANT_OT));
-  }
-  else {
+
+    case TARGET_GLULX:
     return ((otval == CONSTANT_OT)
       || (otval == HALFCONSTANT_OT)
       || (otval == BYTECONSTANT_OT)
       || (otval == ZEROCONSTANT_OT));
+
+    case TARGET_WASM:
+    WABORT;
   }
 }
 
 extern int is_variable_ot(int otval)
 {
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
     return (otval == VARIABLE_OT);
-  }
-  else {
+
+    case TARGET_GLULX:
     return ((otval == LOCALVAR_OT)
       || (otval == GLOBALVAR_OT));
+
+    case TARGET_WASM:
+    WABORT;
   }
 }
 
@@ -176,7 +190,8 @@ extern char *variable_name(int32 i)
     if (i==0) return("sp");
     if (i<MAX_LOCAL_VARIABLES) return local_variable_texts[i-1];
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+      case TARGET_ZCODE:
       if (i==255) return("TEMP1");
       if (i==254) return("TEMP2");
       if (i==253) return("TEMP3");
@@ -188,8 +203,9 @@ extern char *variable_name(int32 i)
       {   if (i - 256 < NUMBER_SYSTEM_FUNCTIONS) return system_functions.keywords[i - 256];
           return "<unnamed system function>";
       }
-    }
-    else {
+      break;
+
+      case TARGET_GLULX:
       switch (i - MAX_LOCAL_VARIABLES) {
       case 0: return "temp_global";
       case 1: return "temp__global2";
@@ -203,6 +219,10 @@ extern char *variable_name(int32 i)
       case 9: return "sys__glob2";
       case 10: return "sys_statusline_flag";
       }
+      break;
+
+      case TARGET_WASM:
+WABORT;
     }
 
     return ((char *) symbs[variable_tokens[i]]);
@@ -287,10 +307,18 @@ static void print_operand_g(const assembly_operand *o, int annotate)
 
 extern void print_operand(const assembly_operand *o, int annotate)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     print_operand_z(o, annotate);
-  else
+    break;
+
+    case TARGET_GLULX:
     print_operand_g(o, annotate);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1482,7 +1510,8 @@ extern int32 assemble_routine_header(int no_locals,
     /*  values other than 0 in V3 and V4.  (In V5+ the Z-Machine doesn't     */
     /*  provide the possibility in any case.)                                */
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+        case TARGET_ZCODE:
 
       if (stackargs) 
         warning("Z-code does not support stack-argument function definitions.");
@@ -1545,9 +1574,9 @@ extern int32 assemble_routine_header(int no_locals,
         assemblez_0(print_zc);
         assemble_label_no(ln2);
       }
+      break;
 
-    }
-    else {
+      case TARGET_GLULX:
       rv = zmachine_pc;
 
       if (stackargs)
@@ -1654,6 +1683,10 @@ extern int32 assemble_routine_header(int no_locals,
         AO.value  = compile_string(") ]^", STRCTX_INFIX);
         assembleg_1(streamstr_gc, AO);
       }
+      break;
+
+      case TARGET_WASM:
+      WABORT;
     }
 
     return rv;
@@ -1671,27 +1704,41 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
 
     if (!execution_never_reaches_here)
     {   
-      if (!glulx_mode) {
+      switch (target_machine) {
+        case TARGET_ZCODE:
         if (embedded_flag) assemblez_0(rfalse_zc);
                       else assemblez_0(rtrue_zc);
-      }
-      else {
+        break;
+
+	case TARGET_GLULX: {
         assembly_operand AO;
         if (embedded_flag) 
             AO = zero_operand;
         else 
             AO = one_operand;
         assembleg_1(return_gc, AO);
+	} break;
+
+	case TARGET_WASM:
+			   WABORT;
       }
     }
 
     /* Dump the contents of the current routine into longer-term Z-code
        storage                                                               */
 
-    if (!glulx_mode)
+    switch (target_machine) {
+      case TARGET_ZCODE:
       transfer_routine_z();
-    else
+      break;
+
+      case TARGET_GLULX:
       transfer_routine_g();
+      break;
+
+      case TARGET_WASM:
+      WABORT;
+    }
 
     if (track_unused_routines)
         df_note_function_end(zmachine_pc);
@@ -1730,7 +1777,7 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
         {   debug_file_printf("<identifier>%s</identifier>", routine_name);
         }
         debug_file_printf("<value>");
-        if (glulx_mode)
+        if (target_machine != TARGET_ZCODE)
         {   write_debug_code_backpatch(routine_start_pc);
         } else
         {   write_debug_packed_code_backpatch(routine_start_pc);
@@ -1745,12 +1792,18 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
         for (i = 1; i <= routine_locals; ++i)
         {   debug_file_printf("<local-variable>");
             debug_file_printf("<identifier>%s</identifier>", variable_name(i));
-            if (glulx_mode)
-            {   debug_file_printf
+            switch (target_machine) {
+            case TARGET_ZCODE:
+                debug_file_printf("<index>%d</index>", i);
+            break;
+
+	    case TARGET_GLULX:
+                debug_file_printf
                     ("<frame-offset>%d</frame-offset>", 4 * (i - 1));
-            }
-            else
-            {   debug_file_printf("<index>%d</index>", i);
+	    break;
+
+	    case TARGET_WASM:
+	    WABORT;
             }
             debug_file_printf("</local-variable>");
         }
@@ -2182,10 +2235,18 @@ static void transfer_routine_g(void)
 
 void assemble_jump(int n)
 {
-    if (!glulx_mode)
+    switch (target_machine) {
+        case TARGET_ZCODE:
         assemblez_jump(n);
-    else
+        break;
+    
+	case TARGET_GLULX:
         assembleg_jump(n);
+	break;
+
+	case TARGET_WASM:
+	WABORT;
+    }
 }
 
 void assemblez_0(int internal_number)
@@ -3125,10 +3186,18 @@ S (store), SS (two stores), R (execution never continues)");
 
 extern void parse_assembly(void)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     parse_assembly_z();
-  else
+    break;
+
+    case TARGET_GLULX:
     parse_assembly_g();
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 /* ========================================================================= */

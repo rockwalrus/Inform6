@@ -94,7 +94,7 @@ extern int parse_given_directive(int internal_flag)
            if ((token_type == SEP_TT) && (token_value == SEMICOLON_SEP))
                return FALSE;
 
-           if (!glulx_mode && no_abbreviations==96)
+           if (target_machine == TARGET_ZCODE && no_abbreviations==96)
            {   error("All 96 Z-machine abbreviations already declared");
                panic_mode_error_recovery(); return FALSE;
            }
@@ -323,7 +323,7 @@ Fake_Action directives to a point after the inclusion of \"Parser\".)");
                 }
             }
 
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 if ((val1 & ~0xFF) || (val3 & ~0xFF)) {
                     warning("Dictionary flag values cannot exceed $FF in Z-code");
                 }
@@ -449,12 +449,12 @@ Fake_Action directives to a point after the inclusion of \"Parser\".)");
 
     case IFV3_CODE:
         flag = FALSE;
-        if (!glulx_mode && version_number <= 3) flag = TRUE;
+        if (target_machine == TARGET_ZCODE && version_number <= 3) flag = TRUE;
         goto HashIfCondition;
 
     case IFV5_CODE:
         flag = TRUE;
-        if (!glulx_mode && version_number <= 3) flag = FALSE;
+        if (target_machine == TARGET_ZCODE && version_number <= 3) flag = FALSE;
         goto HashIfCondition;
 
     case IFTRUE_CODE:
@@ -600,7 +600,7 @@ Fake_Action directives to a point after the inclusion of \"Parser\".)");
         {   error("'LowString' cannot be used in -M (Module) mode");
             panic_mode_error_recovery(); return FALSE;
         }
-        if (glulx_mode) {
+        if (target_machine != TARGET_ZCODE) {
             error("The LowString directive has no meaning in Glulx.");
             panic_mode_error_recovery(); return FALSE;
         }
@@ -909,10 +909,18 @@ Fake_Action directives to a point after the inclusion of \"Parser\".)");
             /*  Ensure the return value of a stubbed routine is false,
                 since this is necessary to make the library work properly    */
 
-            if (!glulx_mode)
+            switch (target_machine) {
+                case TARGET_ZCODE:
                 assemblez_0(rfalse_zc);
-            else
+		break;
+
+		case TARGET_GLULX:
                 assembleg_1(return_gc, zero_operand);
+		break;
+
+		case TARGET_WASM:
+		WABORT;
+	    }
 
             /*  Inhibit "local variable unused" warnings  */
 
@@ -1077,7 +1085,7 @@ the first constant definition");
             if (AO.marker != 0)
                 error("A definite value must be given as version number");
             else 
-            if (glulx_mode) 
+            if (target_machine != TARGET_ZCODE) 
             {
               warning("The Version directive does not work in Glulx. Use \
 -vX.Y.Z instead, as either a command-line argument or a header comment.");
@@ -1103,7 +1111,7 @@ the first constant definition");
 
     case ZCHARACTER_CODE:
 
-        if (glulx_mode) {
+        if (target_machine != TARGET_ZCODE) {
             error("The Zcharacter directive has no meaning in Glulx.");
             panic_mode_error_recovery(); return FALSE;
         }

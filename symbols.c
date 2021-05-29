@@ -375,7 +375,7 @@ extern void issue_unused_warnings(void)
     if (module_switch) return;
 
     /*  Update any ad-hoc variables that might help the library  */
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
     {   global_initial_value[10]=statusline_flag;
     }
     /*  Now back to mark anything necessary as used  */
@@ -550,7 +550,7 @@ static void assign_symbol_base(int index, int32 value, int type)
 
 extern void assign_symbol(int index, int32 value, int type)
 {
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         assign_symbol_base(index, value, type);
     }
     else {
@@ -561,7 +561,7 @@ extern void assign_symbol(int index, int32 value, int type)
 
 extern void assign_marked_symbol(int index, int marker, int32 value, int type)
 {
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         assign_symbol_base(index, (int32)marker*0x10000 + (value % 0x10000),
             type);
     }
@@ -650,10 +650,20 @@ static void create_rsymbol(char *p, int value, int type)
 
 static void stockup_symbols(void)
 {
-    if (!glulx_mode)
+    switch (target_machine) {
+        case TARGET_ZCODE:
         create_symbol("TARGET_ZCODE", 0, CONSTANT_T);
-    else 
+	break;
+
+	case TARGET_GLULX:
         create_symbol("TARGET_GLULX", 0, CONSTANT_T);
+        break;
+
+	case TARGET_WASM:
+        create_symbol("TARGET_WASM", 0, CONSTANT_T);
+        break;
+    }
+
 
     create_symbol("nothing",        0, OBJECT_T);
     create_symbol("name",           1, PROPERTY_T);
@@ -661,8 +671,8 @@ static void stockup_symbols(void)
     create_symbol("true",           1, CONSTANT_T);
     create_symbol("false",          0, CONSTANT_T);
 
-    /* Glulx defaults to GV2; Z-code to GV1 */
-    if (!glulx_mode)
+    /* Glulx and WebAssembly default to GV2; Z-code to GV1 */
+    if (target_machine == TARGET_ZCODE)
         create_rsymbol("Grammar__Version", 1, CONSTANT_T);
     else
         create_rsymbol("Grammar__Version", 2, CONSTANT_T);
@@ -687,7 +697,7 @@ static void stockup_symbols(void)
 
     create_symbol("WORDSIZE",        WORDSIZE, CONSTANT_T);
     create_symbol("DICT_ENTRY_BYTES", DICT_ENTRY_BYTE_LENGTH, CONSTANT_T);
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         create_symbol("DICT_WORD_SIZE", ((version_number==3)?4:6), CONSTANT_T);
         create_symbol("NUM_ATTR_BYTES", ((version_number==3)?4:6), CONSTANT_T);
     }
@@ -708,7 +718,7 @@ static void stockup_symbols(void)
         create_symbol("INDIV_PROP_START",   INDIV_PROP_START, CONSTANT_T);
     }    
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         create_symbol("temp_global",  255, GLOBAL_VARIABLE_T);
         create_symbol("temp__global2", 254, GLOBAL_VARIABLE_T);
         create_symbol("temp__global3", 253, GLOBAL_VARIABLE_T);
@@ -1083,14 +1093,14 @@ extern void locate_dead_functions(void)
 
     ix = symbol_index("Main__", -1);
     if (stypes[ix] == ROUTINE_T) {
-        uint32 addr = svals[ix] * (glulx_mode ? 1 : scale_factor);
+        uint32 addr = svals[ix] * (target_machine != TARGET_ZCODE ? 1 : scale_factor);
         tofunc = df_function_for_address(addr);
         if (tofunc)
             tofunc->usage |= DF_USAGE_MAIN;
     }
     ix = symbol_index("Main", -1);
     if (stypes[ix] == ROUTINE_T) {
-        uint32 addr = svals[ix] * (glulx_mode ? 1 : scale_factor);
+        uint32 addr = svals[ix] * (target_machine != TARGET_ZCODE ? 1 : scale_factor);
         tofunc = df_function_for_address(addr);
         if (tofunc)
             tofunc->usage |= DF_USAGE_MAIN;
@@ -1110,7 +1120,7 @@ extern void locate_dead_functions(void)
         int symbol = ent->symbol;
         if (stypes[symbol] != ROUTINE_T)
             continue;
-        addr = svals[symbol] * (glulx_mode ? 1 : scale_factor);
+        addr = svals[symbol] * (target_machine != TARGET_ZCODE ? 1 : scale_factor);
         tofunc = df_function_for_address(addr);
         if (!tofunc) {
             error_named("Internal error in stripping: global ROUTINE_T symbol is not found in df_function map:", (char *)symbs[symbol]);
@@ -1167,7 +1177,7 @@ extern void locate_dead_functions(void)
                 int symbol = ent->symbol;
                 if (stypes[symbol] != ROUTINE_T)
                     continue;
-                addr = svals[symbol] * (glulx_mode ? 1 : scale_factor);
+                addr = svals[symbol] * (target_machine != TARGET_ZCODE ? 1 : scale_factor);
                 tofunc = df_function_for_address(addr);
                 if (!tofunc) {
                     error_named("Internal error in stripping: function ROUTINE_T symbol is not found in df_function map:", (char *)symbs[symbol]);
@@ -1214,7 +1224,7 @@ extern void locate_dead_functions(void)
                 df_total_size_after_stripping += func->length;
             }
 
-            if (!glulx_mode && (df_total_size_after_stripping % scale_factor != 0))
+            if (target_machine == TARGET_ZCODE && (df_total_size_after_stripping % scale_factor != 0))
                 compiler_error("DF: New function address is not aligned");
 
             if (WARN_UNUSED_ROUTINES && !func->usage) {
@@ -1242,7 +1252,7 @@ extern uint32 df_stripped_address_for_address(uint32 addr)
     if (!track_unused_routines)
         compiler_error("DF: df_stripped_address_for_address called, but function references have not been mapped");
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         func = df_function_for_address(addr*scale_factor);
     else
         func = df_function_for_address(addr);
@@ -1254,7 +1264,7 @@ extern uint32 df_stripped_address_for_address(uint32 addr)
     if (!func->usage)
         compiler_error("DF: Tried to backpatch a function address which should be stripped");
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         return func->newaddress / scale_factor;
     else
         return func->newaddress;
@@ -1423,7 +1433,7 @@ extern void symbols_allocate_arrays(void)
 {
     symbs      = my_calloc(sizeof(char *),  MAX_SYMBOLS, "symbols");
     svals      = my_calloc(sizeof(int32),   MAX_SYMBOLS, "symbol values");
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
         smarks = my_calloc(sizeof(int),     MAX_SYMBOLS, "symbol markers");
     slines     = my_calloc(sizeof(brief_location), MAX_SYMBOLS, "symbol lines");
     stypes     = my_calloc(sizeof(char),    MAX_SYMBOLS, "symbol types");

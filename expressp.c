@@ -92,7 +92,7 @@ static int get_next_etoken(void)
             {   int32 unicode = text_to_unicode(token_text);
                 if (token_text[textual_form_length] == 0)
                 {
-                    if (!glulx_mode) {
+                    if (target_machine == TARGET_ZCODE) {
                         current_token.value = unicode_to_zscii(unicode);
                         if (current_token.value == 5)
                         {   unicode_char_error("Character can be printed \
@@ -147,7 +147,7 @@ but not used as a value:", unicode);
                 case OBJECT_T:
                 case CLASS_T:
                     /* All objects must be backpatched in Glulx. */
-                    if (module_switch || glulx_mode)
+                    if (module_switch || target_machine != TARGET_ZCODE)
                         current_token.marker = OBJECT_MV;
                     break;
                 case ARRAY_T:
@@ -179,7 +179,7 @@ but not used as a value:", unicode);
 
             current_token.value = v;
 
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 if (((current_token.marker != 0)
                   && (current_token.marker != VARIABLE_MV))
                   || (v < 0) || (v > 255))
@@ -201,7 +201,7 @@ but not used as a value:", unicode);
             break;
 
         case NUMBER_TT:
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 if (current_token.value >= 256)
                     current_token.type = LARGE_NUMBER_TT;
                 else
@@ -330,7 +330,7 @@ but not used as a value:", unicode);
                     mark_symbol_as_used = TRUE;
                     current_token.value = svals[symbol] - MAX_LOCAL_VARIABLES;
                     current_token.marker = 0;
-                    if (!glulx_mode) {
+                    if (target_machine == TARGET_ZCODE) {
                         if (current_token.value >= 0x100)
                             current_token.type = LARGE_NUMBER_TT;
                         else current_token.type = SMALL_NUMBER_TT;
@@ -746,12 +746,71 @@ static int32 value_of_system_constant_g(int t)
   return 0;
 }
 
+
+/* Must match the switch statement below */
+int wasm_system_constant_list[] =
+    { classes_table_SC,
+      identifiers_table_SC,
+      array_names_offset_SC,
+      cpv__start_SC,
+      cpv__end_SC,
+      dictionary_table_SC,
+      dynam_string_table_SC,
+      grammar_table_SC,
+      actions_table_SC,
+      globals_array_SC,
+      highest_class_number_SC,
+      highest_object_number_SC,
+      -1 };
+
+static int32 value_of_system_constant_w(int t)
+{ 
+  switch (t) {
+  /*case classes_table_SC:
+    return Write_RAM_At + class_numbers_offset;
+  case identifiers_table_SC:
+    return Write_RAM_At + identifier_names_offset;
+  case array_names_offset_SC:
+    return Write_RAM_At + array_names_offset;
+  case cpv__start_SC:
+    return prop_defaults_offset;
+  case cpv__end_SC:
+    return Write_RAM_At + class_numbers_offset;
+  case dictionary_table_SC:
+    return dictionary_offset;
+  case dynam_string_table_SC:
+    return abbreviations_offset;
+  case grammar_table_SC:
+    return grammar_table_offset;
+  case actions_table_SC:
+    return actions_offset;
+  case globals_array_SC:
+    return variables_offset;
+  case highest_class_number_SC:
+    return no_classes-1;
+  case highest_object_number_SC:
+    return no_objects-1;*/
+  }
+
+  error_named("System constant not implemented in WebAssembly",
+    system_constants.keywords[t]);
+
+  return 0;
+}
+
+
 extern int32 value_of_system_constant(int t)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     return value_of_system_constant_z(t);
-  else
+
+    case TARGET_GLULX:
     return value_of_system_constant_g(t);    
+
+    case TARGET_WASM:
+    return value_of_system_constant_w(t);    
+  }
 }
 
 extern char *name_of_system_constant(int t)
@@ -779,7 +838,7 @@ static int evaluate_term(token_data t, assembly_operand *o)
     switch(t.type)
     {   case LARGE_NUMBER_TT:
              v = t.value;
-             if (!glulx_mode) {
+             if (target_machine == TARGET_ZCODE) {
                  if (v < 0) v = v + 0x10000;
                  o->type = LONG_CONSTANT_OT;
                  o->value = v;
@@ -791,7 +850,7 @@ static int evaluate_term(token_data t, assembly_operand *o)
              return(TRUE);
         case SMALL_NUMBER_TT:
              v = t.value;
-             if (!glulx_mode) {
+             if (target_machine == TARGET_ZCODE) {
                  if (v < 0) v = v + 0x10000;
                  o->type = SHORT_CONSTANT_OT;
                  o->value = v;
@@ -803,7 +862,7 @@ static int evaluate_term(token_data t, assembly_operand *o)
              return(TRUE);
         case DICTWORD_TT:
              /*  Find the dictionary address, adding to dictionary if absent */
-             if (!glulx_mode) 
+             if (target_machine == TARGET_ZCODE) 
                  o->type = LONG_CONSTANT_OT;
              else
                  o->type = CONSTANT_OT;
@@ -811,14 +870,14 @@ static int evaluate_term(token_data t, assembly_operand *o)
              return(TRUE);
         case DQ_TT:
              /*  Create as a static string  */
-             if (!glulx_mode) 
+             if (target_machine == TARGET_ZCODE) 
                  o->type = LONG_CONSTANT_OT;
              else
                  o->type = CONSTANT_OT;
              o->value = compile_string(t.text, STRCTX_GAME);
              return(TRUE);
         case VARIABLE_TT:
-             if (!glulx_mode) {
+             if (target_machine == TARGET_ZCODE) {
                  o->type = VARIABLE_OT;
              }
              else {
@@ -834,7 +893,7 @@ static int evaluate_term(token_data t, assembly_operand *o)
              o->value = t.value;
              return(TRUE);
         case SYSFUN_TT:
-             if (!glulx_mode) {
+             if (target_machine == TARGET_ZCODE) {
                  o->type = VARIABLE_OT;
                  o->value = t.value + 256;
              }
@@ -852,7 +911,7 @@ static int evaluate_term(token_data t, assembly_operand *o)
                  version number and need no backpatching, as they
                  are known in advance.  We can therefore evaluate
                  them immediately.  */
-             if (!glulx_mode) {
+             if (target_machine == TARGET_ZCODE) {
                  o->type = LONG_CONSTANT_OT;
                  switch(t.value)
                  {   
@@ -1121,14 +1180,14 @@ static void emit_token(token_data t)
             warning("Ignoring spurious trailing comma");
         while (emitter_markers[emitter_sp-arity] != FUNCTION_VALUE_MARKER)
         {
-            if ((glulx_mode &&
+            if ((target_machine != TARGET_ZCODE &&
                  emitter_stack[emitter_sp-arity].type == SYSFUN_OT) ||
-                (!glulx_mode &&
+                (target_machine == TARGET_ZCODE &&
                  emitter_stack[emitter_sp-arity].type == VARIABLE_OT &&
                  emitter_stack[emitter_sp-arity].value >= 256 &&
                  emitter_stack[emitter_sp-arity].value < 288))
             {   int index = emitter_stack[emitter_sp-arity].value;
-                if(!glulx_mode)
+                if(target_machine == TARGET_ZCODE)
                     index -= 256;
                 if(index >= 0 && index < NUMBER_SYSTEM_FUNCTIONS)
                     error_named("System function name used as a value:", system_functions.keywords[index]);
@@ -1201,7 +1260,7 @@ static void emit_token(token_data t)
             {   switch(t.value)
                 {   case UNARY_MINUS_OP: x = -o1.value; goto FoldConstant;
                     case ARTNOT_OP: 
-                         if (!glulx_mode)
+                         if (target_machine == TARGET_ZCODE)
                              x = (~o1.value) & 0xffff;
                          else
                              x = (~o1.value) & 0xffffffff;
@@ -1221,7 +1280,7 @@ static void emit_token(token_data t)
                 && is_constant_ot(o1.type) && is_constant_ot(o2.type))
             {
                 int32 ov1, ov2;
-                if (glulx_mode)
+                if (target_machine != TARGET_ZCODE)
                 { ov1 = o1.value;
                   ov2 = o2.value;
                 }
@@ -1346,7 +1405,7 @@ static void emit_token(token_data t)
     /* In Glulx, skip this test; we can't check out-of-range errors 
        for 32-bit arithmetic. */
 
-    if (!glulx_mode && ((x<-32768) || (x > 32767)))
+    if (target_machine == TARGET_ZCODE && ((x<-32768) || (x > 32767)))
     {   char folding_error[40];
         int32 ov1 = (o1.value >= 0x8000) ? (o1.value - 0x10000) : o1.value;
         int32 ov2 = (o2.value >= 0x8000) ? (o2.value - 0x10000) : o2.value;
@@ -1368,7 +1427,7 @@ the range -32768 to +32767:", folding_error);
 
     FoldConstant:
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         while (x < 0) x = x + 0x10000;
         x = x & 0xffff;
     }
@@ -1378,7 +1437,7 @@ the range -32768 to +32767:", folding_error);
 
     emitter_sp = emitter_sp - arity + 1;
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if (x<256)
             emitter_stack[emitter_sp - 1].type = SHORT_CONSTANT_OT;
         else emitter_stack[emitter_sp - 1].type = LONG_CONSTANT_OT;
@@ -1767,7 +1826,7 @@ static assembly_operand check_conditions(assembly_operand AO, int context)
     insert_exp_to_cond(AO.value, context);
     delete_negations(AO.value, context);
 
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
         func_args_on_stack(AO.value, context);
 
     return AO;
@@ -1905,7 +1964,7 @@ extern assembly_operand parse_expression(int context)
                 {   printf("Tree before lvalue checking:\n");
                     show_tree(AO, FALSE);
                 }
-                if (!glulx_mode)
+                if (target_machine == TARGET_ZCODE)
                     check_property_operator(AO.value);
                 check_lvalues(AO.value);
                 ET[AO.value].up = -1;

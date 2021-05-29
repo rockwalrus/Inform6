@@ -88,7 +88,7 @@ extern void finish_array(int32 i, int is_static)
   
     /*  Write the array size into the 0th byte/word of the array, if it's
         a "table" or "string" array                                          */
-  if (!glulx_mode) {
+  if (target_machine == TARGET_ZCODE) {
 
     if (array_base != area_size)
     {   if (area_size-array_base==2)
@@ -147,7 +147,7 @@ extern void array_entry(int32 i, int is_static, assembly_operand VAL)
       area_size = static_array_area_size;
   }
   
-  if (!glulx_mode) {
+  if (target_machine == TARGET_ZCODE) {
     /*  Array entry i (initial entry has i=0) is set to Z-machine value j    */
 
     if (area_size+(i+1)*array_entry_size > MAX_STATIC_DATA)
@@ -293,7 +293,7 @@ extern void make_global(int array_flag, int name_only)
     global_symbol = i;
     global_name = token_text;
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if ((token_type==SYMBOL_TT) && (stypes[i]==GLOBAL_VARIABLE_T)
             && (svals[i] >= LOWEST_SYSTEM_VAR_NUMBER))
             goto RedefinitionOfSystemVar;
@@ -339,7 +339,7 @@ extern void make_global(int array_flag, int name_only)
     
     if (array_flag)
     {   if (!is_static) {
-            if (!glulx_mode)
+            if (target_machine == TARGET_ZCODE)
                 assign_symbol(i, dynamic_array_area_size, ARRAY_T);
             else
                 assign_symbol(i, 
@@ -353,13 +353,13 @@ extern void make_global(int array_flag, int name_only)
         array_symbols[no_arrays] = i;
     }
     else
-    {   if (!glulx_mode && no_globals==233)
+    {   if (target_machine == TARGET_ZCODE && no_globals==233)
         {   discard_token_location(beginning_debug_location);
             error("All 233 global variables already declared");
             panic_mode_error_recovery();
             return;
         }
-        if (glulx_mode && no_globals==MAX_GLOBAL_VARIABLES)
+        if (target_machine != TARGET_ZCODE && no_globals==MAX_GLOBAL_VARIABLES)
         {   discard_token_location(beginning_debug_location);
             memoryerror("MAX_GLOBAL_VARIABLES", MAX_GLOBAL_VARIABLES);
             panic_mode_error_recovery();
@@ -409,7 +409,7 @@ extern void make_global(int array_flag, int name_only)
         /* is_static is always false in this case */
         if ((token_type == SEP_TT) && (token_value == SETEQUALS_SEP))
         {   AO = parse_expression(CONSTANT_CONTEXT);
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 if (AO.marker != 0)
                     backpatch_zmachine(AO.marker, DYNAMIC_ARRAY_ZA,
                         2*(no_globals-1));
@@ -435,7 +435,7 @@ extern void make_global(int array_flag, int name_only)
 
         obsolete_warning("more modern to use 'Array', not 'Global'");
 
-        if (!glulx_mode) {
+        if (target_machine == TARGET_ZCODE) {
             backpatch_zmachine(ARRAY_MV, DYNAMIC_ARRAY_ZA, 2*(no_globals-1));
             global_initial_value[no_globals-1]
                 = dynamic_array_area_size+variables_offset;
@@ -545,7 +545,7 @@ extern void make_global(int array_flag, int name_only)
                 break;
             }
 
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 if ((AO.value <= 0) || (AO.value >= 32768))
                 {   error("An array must have between 1 and 32767 entries");
                     AO.value = 1;
@@ -620,7 +620,7 @@ extern void make_global(int array_flag, int name_only)
                 {
                     int32 unicode; int zscii;
                     unicode = text_to_unicode(token_text+j);
-                    if (glulx_mode)
+                    if (target_machine != TARGET_ZCODE)
                     {
                         if (array_entry_size == 1 && (unicode < 0 || unicode >= 256))
                         {
@@ -720,7 +720,7 @@ extern int32 begin_table_array(void)
 
     dynamic_array_area_size += array_entry_size;
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         return array_base;
     else
         return array_base - WORDSIZE * MAX_GLOBAL_VARIABLES;
@@ -735,7 +735,7 @@ extern int32 begin_word_array(void)
     array_base = dynamic_array_area_size;
     array_entry_size = WORDSIZE;
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         return array_base;
     else
         return array_base - WORDSIZE * MAX_GLOBAL_VARIABLES;
@@ -754,7 +754,7 @@ extern void init_arrays_vars(void)
 
 extern void arrays_begin_pass(void)
 {   no_arrays = 0; 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         no_globals=0; 
     else
         no_globals=11;

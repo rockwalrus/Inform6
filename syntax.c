@@ -296,17 +296,25 @@ static void compile_alternatives_g(assembly_operand switch_value, int n,
 static void compile_alternatives(assembly_operand switch_value, int n,
     int stack_level, int label, int flag)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     compile_alternatives_z(switch_value, n, stack_level, label, flag);
-  else
+    break;
+
+    case TARGET_GLULX:
     compile_alternatives_g(switch_value, n, stack_level, label, flag);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 static void parse_switch_spec(assembly_operand switch_value, int label,
     int action_switch)
 {
     int i, j, label_after = -1, spec_sp = 0;
-    int max_equality_args = ((!glulx_mode) ? 3 : 1);
+    int max_equality_args = ((target_machine == TARGET_ZCODE) ? 3 : 1);
 
     sequence_point_follows = FALSE;
 
@@ -376,7 +384,8 @@ static void parse_switch_spec(assembly_operand switch_value, int label,
          }
          else
          {   
-           if (!glulx_mode) {
+           switch (target_machine) {
+             case TARGET_ZCODE:
              if (i == spec_sp - 2)
              {   assemblez_2_branch(jl_zc, switch_value, spec_stack[i],
                      label, TRUE);
@@ -390,8 +399,9 @@ static void parse_switch_spec(assembly_operand switch_value, int label,
                      label_after, FALSE);
                  assemble_label_no(next_label++);
              }
-           }
-           else {
+	     break;
+
+	     case TARGET_GLULX:
              if (i == spec_sp - 2)
              {   assembleg_2_branch(jlt_gc, switch_value, spec_stack[i],
                      label);
@@ -405,6 +415,10 @@ static void parse_switch_spec(assembly_operand switch_value, int label,
                      label_after);
                  assemble_label_no(next_label++);
              }
+	     break;
+
+             case TARGET_WASM:
+	     WABORT;
            }
            i = i+2;
          }
@@ -518,11 +532,19 @@ extern int32 parse_routine(char *source, int embedded_flag, char *name,
             if (switch_clause_made)
             {   if (!execution_never_reaches_here)
                 {   sequence_point_follows = FALSE;
-                    if (!glulx_mode)
+                    switch (target_machine) {
+                        case TARGET_ZCODE:
                         assemblez_0((embedded_flag)?rfalse_zc:rtrue_zc);
-                    else
+                        break;
+
+			case TARGET_GLULX:
                         assembleg_1(return_gc, 
                             ((embedded_flag)?zero_operand:one_operand));
+			break;
+
+			case TARGET_WASM:
+			WABORT;
+		    }
                 }
                 assemble_label_no(switch_label);
             }
@@ -551,11 +573,19 @@ extern int32 parse_routine(char *source, int embedded_flag, char *name,
                 if (switch_clause_made)
                 {   if (!execution_never_reaches_here)
                     {   sequence_point_follows = FALSE;
-                        if (!glulx_mode)
+                        switch (target_machine) {
+                            case TARGET_ZCODE:
                             assemblez_0((embedded_flag)?rfalse_zc:rtrue_zc);
-                        else
+			    break;
+
+			    case TARGET_GLULX:
                             assembleg_1(return_gc, 
                                 ((embedded_flag)?zero_operand:one_operand));
+			    break;
+
+			    case TARGET_WASM:
+			    WABORT;
+			}
                     }
                     assemble_label_no(switch_label);
                 }
@@ -564,11 +594,17 @@ extern int32 parse_routine(char *source, int embedded_flag, char *name,
                 switch_clause_made = TRUE;
                 put_token_back(); put_token_back();
 
-                if (!glulx_mode) {
+                switch (target_machine) {
+                    case TARGET_ZCODE:
                     INITAOTV(&AO, VARIABLE_OT, 249);
-                }
-                else {
+		    break;
+
+		    case TARGET_GLULX:
                     INITAOTV(&AO, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+6); /* sw__var */
+		    break;
+
+		    case TARGET_WASM:
+		    WABORT;
                 }
                 parse_switch_spec(AO, switch_label, TRUE);
 

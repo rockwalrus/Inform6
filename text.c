@@ -181,7 +181,7 @@ static int try_abbreviations_from(unsigned char *text, int i, int from)
     {   if (text[i+1]==p[1])
         {   for (k=2; p[k]!=0; k++)
                 if (text[i+k]!=p[k]) goto NotMatched;
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 for (k=0; p[k]!=0; k++) text[i+k]=1;
             }
             abbrev_freqs[j]++;
@@ -220,7 +220,7 @@ extern int32 compile_string(char *b, int strctx)
        (In Glulx, the in_low_memory flag is ignored.) */
     int in_low_memory = (strctx == STRCTX_ABBREV || strctx == STRCTX_LOWSTRING);
 
-    if (!glulx_mode && in_low_memory)
+    if (target_machine == TARGET_ZCODE && in_low_memory)
     {   j=subtract_pointers(low_strings_top,low_strings);
         low_strings_top=translate_text(low_strings_top, low_strings+MAX_LOW_STRINGS, b, strctx);
         if (!low_strings_top)
@@ -228,7 +228,7 @@ extern int32 compile_string(char *b, int strctx)
         return(0x21+(j/2));
     }
 
-    if (glulx_mode && done_compression)
+    if (target_machine != TARGET_ZCODE && done_compression)
         compiler_error("Tried to add a string after compression was done.");
 
     c = translate_text(strings_holding_area, strings_holding_area+MAX_STATIC_STRINGS, b, strctx);
@@ -240,7 +240,7 @@ extern int32 compile_string(char *b, int strctx)
     /* Insert null bytes as needed to ensure that the next static string */
     /* also occurs at an address expressible as a packed address         */
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         int textalign;
         if (oddeven_packing_switch) 
             textalign = scale_factor*2;
@@ -266,7 +266,7 @@ extern int32 compile_string(char *b, int strctx)
             write_byte_to_memory_block(&static_strings_area,
                 static_strings_extent, *c);
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         return(j/scale_factor);
     }
     else {
@@ -426,7 +426,7 @@ extern uchar *translate_text(uchar *p, uchar *p_limit, char *s_text, int strctx)
         }
     }
     
-  if (!glulx_mode) {
+  if (target_machine == TARGET_ZCODE) {
 
     /*  The empty string of Z-text is illegal, since it can't carry an end
         bit: so we translate an empty string of ASCII text to just the
@@ -525,7 +525,7 @@ advance as part of 'Zcharacter table':", unicode);
                 else
                 {
                     j = d1*10 + d2;
-                    if (!glulx_mode && j >= 96)
+                    if (target_machine == TARGET_ZCODE && j >= 96)
                     {   error("Z-machine dynamic strings are limited to 96");
                         j = 0;
                     }
@@ -1754,7 +1754,7 @@ Define DICT_CHAR_SIZE=4 for a Unicode-compatible dictionary.");
 
 extern void dictionary_prepare(char *dword, uchar *optresult)
 {
-  if (!glulx_mode)
+  if (target_machine == TARGET_ZCODE)
     dictionary_prepare_z(dword, optresult);
   else
     dictionary_prepare_g(dword, optresult);
@@ -1803,7 +1803,7 @@ static void dictionary_begin_pass(void)
     /*  Leave room for the 7-byte header (added in "tables.c" much later)    */
     /*  Glulx has a 4-byte header instead. */
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         dictionary_top=dictionary+7;
     else
         dictionary_top=dictionary+4;
@@ -1878,7 +1878,7 @@ extern int dictionary_add(char *dword, int x, int y, int z)
         n = compare_sorts(prepared_sort, dict_sort_codes+at*DICT_WORD_BYTES);
         if (n==0)
         {
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 p = dictionary+7 + at*(3+res) + res;
                 p[0]=(p[0])|x; p[1]=(p[1])|y; p[2]=(p[2])|z;
                 if (x & 128) p[0] = (p[0])|number_and_case;
@@ -1984,7 +1984,7 @@ extern int dictionary_add(char *dword, int x, int y, int z)
 
     /*  Address in Inform's own dictionary table to write the record to      */
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
 
         p = dictionary + (3+res)*dict_entries + 7;
 
@@ -2038,7 +2038,7 @@ extern void dictionary_set_verb_number(char *dword, int to)
     i=dictionary_find(dword);
     if (i!=0)
     {   
-        if (!glulx_mode) {
+        if (target_machine == TARGET_ZCODE) {
             p=dictionary+7+(i-1)*(3+res)+res; 
             p[1]=to;
         }
@@ -2180,7 +2180,7 @@ void print_dict_word(int node)
     uchar *p;
     int cprinted;
     
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         char textual_form[32];
         int res = (version_number == 3)?4:6; /* byte length of encoded text */
         p = (uchar *)dictionary + 7 + (3+res)*node;
@@ -2329,12 +2329,12 @@ extern void show_dictionary(void)
 {   printf("Dictionary contains %d entries:\n",dict_entries);
     if (dict_entries != 0)
     {   d_show_len = 0; d_show_buf = NULL; 
-        if (!glulx_mode)    
+        if (target_machine == TARGET_ZCODE)    
             recursively_show_z(root);
         else
             recursively_show_g(root);
     }
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
     {
         printf("\nZ-machine alphabet entries:\n");
         show_alphabet(0);
@@ -2356,7 +2356,7 @@ extern void write_dictionary_to_transcript(void)
 
     if (dict_entries != 0)
     {
-        if (!glulx_mode)    
+        if (target_machine == TARGET_ZCODE)    
             recursively_show_z(root);
         else
             recursively_show_g(root);
@@ -2422,7 +2422,7 @@ extern void text_allocate_arrays(void)
     dict_sort_codes  = my_calloc(DICT_WORD_BYTES, MAX_DICT_ENTRIES,
                                  "dictionary sort codes");
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         dictionary = my_malloc(9*MAX_DICT_ENTRIES+7,
             "dictionary");
     else
@@ -2446,7 +2446,7 @@ extern void text_allocate_arrays(void)
 
     MAX_CHARACTER_SET = 0;
 
-    if (glulx_mode) {
+    if (target_machine != TARGET_ZCODE) {
       if (compression_switch) {
         int ix;
         MAX_CHARACTER_SET = 257 + MAX_ABBREVS + MAX_DYNAMIC_STRINGS 

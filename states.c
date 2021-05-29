@@ -113,7 +113,7 @@ static void parse_action(void)
 
     if ((token_type == SEP_TT) && (token_value == COMMA_SEP))
     {
-        if (!glulx_mode && (version_number < 4))
+        if (target_machine == TARGET_ZCODE && (version_number < 4))
         {
             error("<x, y> syntax is not available in Z-code V3 or earlier");
         }
@@ -134,7 +134,8 @@ static void parse_action(void)
         }
     }
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+      case TARGET_ZCODE:
 
       AO = veneer_routine(R_Process_VR);
 
@@ -188,10 +189,9 @@ static void parse_action(void)
       }
 
       if (level == 2) assemblez_0(rtrue_zc);
+      break;
 
-    }
-    else {
-
+      case TARGET_GLULX:
       AO = veneer_routine(R_Process_VR);
 
       switch (args) {
@@ -237,7 +237,10 @@ static void parse_action(void)
 
       if (level == 2) 
         assembleg_1(return_gc, one_operand);
+      break;
 
+      case TARGET_WASM:
+      WABORT;
     }
 }
 
@@ -2680,10 +2683,18 @@ static void parse_statement_g(int break_label, int continue_label)
 
 extern void parse_statement(int break_label, int continue_label)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     parse_statement_z(break_label, continue_label);
-  else
+    break;
+
+    case TARGET_GLULX:
     parse_statement_g(break_label, continue_label);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 /* ========================================================================= */

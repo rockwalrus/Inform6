@@ -115,7 +115,8 @@ static void percentage(char *name, int32 x, int32 total)
 
 static char *version_name(int v)
 {
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
     switch(v)
     {   case 3: return "Standard";
         case 4: return "Plus";
@@ -124,9 +125,12 @@ static char *version_name(int v)
         case 8: return "Extended";
     }
     return "experimental format";
-  }
-  else {
+
+    case TARGET_GLULX:
     return "Glulx";
+
+    case TARGET_WASM:
+    return "WebAssembly";
   }
 }
 
@@ -1904,10 +1908,18 @@ printf("  extn  +---------------------+   %06lx\n", (long int) Out_Size+MEMORY_M
 
 extern void construct_storyfile(void)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     construct_storyfile_z();
-  else
+    break;
+
+    case TARGET_GLULX:
     construct_storyfile_g();
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 /* ========================================================================= */
@@ -1921,7 +1933,7 @@ extern void init_tables_vars(void)
 
     zmachine_paged_memory = NULL;
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
       code_offset = 0x800;
       actions_offset = 0x800;
       preactions_offset = 0x800;

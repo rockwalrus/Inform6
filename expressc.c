@@ -24,7 +24,8 @@ assembly_operand stack_pointer, temp_var1, temp_var2, temp_var3,
 
 static void make_operands(void)
 {
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
     INITAOTV(&stack_pointer, VARIABLE_OT, 0);
     INITAOTV(&temp_var1, VARIABLE_OT, 255);
     INITAOTV(&temp_var2, VARIABLE_OT, 254);
@@ -36,8 +37,9 @@ static void make_operands(void)
     INITAOTV(&three_operand, SHORT_CONSTANT_OT, 3);
     INITAOTV(&four_operand, SHORT_CONSTANT_OT, 4);
     INITAOTV(&valueless_operand, OMITTED_OT, 0);
-  }
-  else {
+    break;
+
+    case TARGET_GLULX:
     INITAOTV(&stack_pointer, LOCALVAR_OT, 0);
     INITAOTV(&temp_var1, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+0);
     INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
@@ -49,6 +51,10 @@ static void make_operands(void)
     INITAOTV(&three_operand, BYTECONSTANT_OT, 3);
     INITAOTV(&four_operand, BYTECONSTANT_OT, 4);
     INITAOTV(&valueless_operand, OMITTED_OT, 0);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
   }
 }
 
@@ -1222,20 +1228,34 @@ static void compile_conditional_g(condclass *cc,
 
 static void value_in_void_context(assembly_operand AO)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     value_in_void_context_z(AO);
-  else
+    break;
+
+    case TARGET_GLULX:
     value_in_void_context_g(AO);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 
 extern assembly_operand check_nonzero_at_runtime(assembly_operand AO1,
   int error_label, int rte_number)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     return check_nonzero_at_runtime_z(AO1, error_label, rte_number);
-  else
+
+    case TARGET_GLULX:
     return check_nonzero_at_runtime_g(AO1, error_label, rte_number);
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 static void generate_code_from(int n, int void_flag)
@@ -1314,7 +1334,8 @@ static void generate_code_from(int n, int void_flag)
     {   ET[n].down = -1; return;
     }
 
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
 
     if (operators[opnum].opcode_number_z >= 400)
     {
@@ -1459,8 +1480,9 @@ static void generate_code_from(int n, int void_flag)
         goto OperatorGenerated;
     }
 
-  }
-  else {
+    break;
+
+    case TARGET_GLULX:
     if (operators[opnum].opcode_number_g >= FIRST_CC 
       && operators[opnum].opcode_number_g <= LAST_CC) {
       /*  Conditional terms such as '==': */
@@ -1584,6 +1606,11 @@ static void generate_code_from(int n, int void_flag)
       goto OperatorGenerated;
     }
 
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+
   }
 
     /*  The operator is now definitely one which produces a value  */
@@ -1611,7 +1638,8 @@ static void generate_code_from(int n, int void_flag)
         else Result = stack_pointer;  /*  Otherwise, put it on the stack  */
     }
 
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
 
     if (operators[opnum].opcode_number_z != -1)
     {
@@ -2167,8 +2195,9 @@ static void generate_code_from(int n, int void_flag)
                 opnum, operators[opnum].description);
             compiler_error("Expr code gen: Can't generate yet");
     }
-  }
-  else {
+    break;
+
+    case TARGET_GLULX: {
     assembly_operand AO, AO2;
     if (operators[opnum].opcode_number_g != -1)
     {
@@ -2753,13 +2782,19 @@ static void generate_code_from(int n, int void_flag)
                 opnum, operators[opnum].description);
             compiler_error("Expr code gen: Can't generate yet");
     }
+    }break;
+
+    case TARGET_WASM:
+    WABORT;
+    break;
   }
 
     ET[n].value = Result;
 
     OperatorGenerated:
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+        case TARGET_ZCODE:
 
         if (ET[n].to_expression)
         {
@@ -2790,8 +2825,9 @@ static void generate_code_from(int n, int void_flag)
             if (ET[n].label_after != -1)
                 assemble_label_no(ET[n].label_after);
 
-    }
-    else {
+	break;
+
+        case TARGET_GLULX:
 
         if (ET[n].to_expression)
         {   
@@ -2821,6 +2857,10 @@ static void generate_code_from(int n, int void_flag)
         else
             if (ET[n].label_after != -1)
                 assemble_label_no(ET[n].label_after);
+	break;
+
+	case TARGET_WASM:
+	WABORT;
 
     }
 
@@ -2853,15 +2893,21 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
                 AO.value = 0;
                 break;
             case CONDITION_CONTEXT:
-                if (!glulx_mode) {
+                switch (target_machine) {
+                  case TARGET_ZCODE:
                   if (label < -2) assemblez_1_branch(jz_zc, AO, label, FALSE);
                   else assemblez_1_branch(jz_zc, AO, label, TRUE);
-                }
-                else {
+                  break;
+
+		  case TARGET_GLULX:
                   if (label < -2) 
                     assembleg_1_branch(jnz_gc, AO, label);
                   else 
                     assembleg_1_branch(jz_gc, AO, label);
+		  break;
+
+		  case TARGET_WASM:
+		  WABORT;
                 }
                 AO.type = OMITTED_OT;
                 AO.value = 0;

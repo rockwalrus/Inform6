@@ -105,8 +105,8 @@ int DICT_ENTRY_FLAG_POS;
 
 static void select_target(int targ)
 {
-  if (!targ) {
-    /* Z-machine */
+  switch (targ) {
+    case TARGET_ZCODE:
     WORDSIZE = 2;
     MAXINTWORD = 0x7FFF;
 
@@ -138,9 +138,10 @@ static void select_target(int targ)
       MAX_VERBS = 255;
       fatalerror("MAX_VERBS can only go above 255 when Glulx is used");
     }
-  }
-  else {
-    /* Glulx */
+    break;
+
+    case TARGET_GLULX:
+    case TARGET_WASM:
     WORDSIZE = 4;
     MAXINTWORD = 0x7FFFFFFF;
     scale_factor = 0; /* It should never even get used in Glulx */
@@ -303,7 +304,7 @@ int character_set_setting,          /* set by -C0 through -C9 */
                                        of memory (used by both -r & -k) */
 static int r_e_c_s_set;             /* has -S been explicitly set? */
 
-int glulx_mode;                     /* -G */
+target_machine_t target_machine;    /* -G, -W*/
 
 static void reset_switch_settings(void)
 {   asm_trace_setting=0;
@@ -358,7 +359,7 @@ static void reset_switch_settings(void)
     character_set_unicode = FALSE;
 
     compression_switch = TRUE;
-    glulx_mode = FALSE;
+    target_machine = TARGET_ZCODE;
     requested_glulx_version = 0;
 }
 
@@ -866,7 +867,8 @@ extern void translate_out_filename(char *new_name, char *old_name)
     }
     else
     {
-        if (!glulx_mode) {
+        switch (target_machine) {
+            case TARGET_ZCODE:
             switch(version_number)
             {   case 3: extension = Code_Extension;   break;
                 case 4: extension = V4Code_Extension; break;
@@ -875,9 +877,16 @@ extern void translate_out_filename(char *new_name, char *old_name)
                 case 7: extension = V7Code_Extension; break;
                 case 8: extension = V8Code_Extension; break;
             }
-        }
-        else {
+	    break;
+
+	    case TARGET_GLULX:
             extension = GlulxCode_Extension;
+            break;
+
+
+	    case TARGET_WASM:
+            extension = WasmCode_Extension;
+            break;
         }
         if (Code_Path[0]!=0) prefix_path = Code_Path;
     }
@@ -983,12 +992,12 @@ Inform translates plain filenames (such as \"xyzzy\") into full pathnames\n\
       Source code:     %s\n\
       Include files:   %s\n\
       Story files:     %s (Version 3), %s (v4), %s (v5, the default),\n\
-                       %s (v6), %s (v7), %s (v8), %s (Glulx)\n\
+                       %s (v6), %s (v7), %s (v8), %s (Glulx), %s (WebAssembly)\n\
       Temporary files: .tmp\n\
       Modules:         %s\n\n",
       Source_Extension, Include_Extension,
       Code_Extension, V4Code_Extension, V5Code_Extension, V6Code_Extension,
-      V7Code_Extension, V8Code_Extension, GlulxCode_Extension, 
+      V7Code_Extension, V8Code_Extension, GlulxCode_Extension, WasmCode_Extension,
       Module_Extension);
     printf("\
    except that any extension you give (on the command line or in a filename\n\
@@ -1183,15 +1192,15 @@ static int compile(int number_of_files_specified, char *file1, char *file2)
     if (execute_icl_header(file1))
       return 1;
 
-    select_target(glulx_mode);
+    select_target(target_machine);
 
-    if (define_INFIX_switch && glulx_mode) {
+    if (define_INFIX_switch && target_machine != TARGET_ZCODE) {
         printf("Infix (-X) facilities are not available in Glulx: \
 disabling -X switch\n");
         define_INFIX_switch = FALSE;
     }
 
-    if (module_switch && glulx_mode) {
+    if (module_switch && target_machine != TARGET_ZCODE) {
         printf("Modules are not available in Glulx: \
 disabling -M switch\n");
         module_switch = FALSE;
@@ -1378,6 +1387,7 @@ One or more words can be supplied as \"commands\". These may be:\n\n\
   z   print memory map of the virtual machine\n\n");
 
 printf("\
+  A   compile a WebAssembly game file\n\
   B   use big memory model (for large V6/V7 files)\n\
   C0  text character set is plain ASCII only\n\
   Cu  text character set is UTF-8\n\
@@ -1485,7 +1495,7 @@ extern void switches(char *p, int cmode)
                       break;
                   }
                   optimise_switch = state; break;
-        case 'v': if (glulx_mode) { s = select_glulx_version(p+i+1)+1; break; }
+        case 'v': if (target_machine != TARGET_ZCODE) { s = select_glulx_version(p+i+1)+1; break; }
                   if ((cmode==0) && (version_set_switch)) { s=2; break; }
                   version_set_switch = TRUE; s=2;
                   switch(p[i+1])
@@ -1565,7 +1575,14 @@ extern void switches(char *p, int cmode)
                   else if (version_set_switch)
                       error("The '-G' switch cannot follow the '-v' switch");
                   else
-                  {   glulx_mode = state;
+                  {   target_machine = state? TARGET_GLULX : TARGET_ZCODE;
+                      adjust_memory_sizes();
+                  }
+                  break;
+        case 'A': if (cmode == 0)
+                      error("The switch '-A' can't be set with 'Switches'");
+                  else
+                  {   target_machine = state? TARGET_WASM : TARGET_ZCODE;
                       adjust_memory_sizes();
                   }
                   break;

@@ -518,6 +518,9 @@ static int32 unique_task_id(void)
 #ifndef GlulxCode_Extension
 #define GlulxCode_Extension  ".ulx"
 #endif
+#ifndef WasmCode_Extension
+#define WasmCode_Extension  ".wasm"
+#endif
 #ifndef Module_Extension
 #define Module_Extension  ".m5"
 #endif
@@ -536,6 +539,7 @@ static int32 unique_task_id(void)
 #define V7Code_Extension  ""
 #define V8Code_Extension  ""
 #define GlulxCode_Extension  ""
+#define WasmCode_Extension  ""
 #define Module_Extension  ""
 #define ICL_Extension     ""
 #endif
@@ -654,7 +658,7 @@ static int32 unique_task_id(void)
    longer needed. */
 #define ASSERT_ZCODE() (0)
 #define ASSERT_GLULX() (0)
-
+#define WABORT printf("WABORT %s", __func__); exit(1);
 
 #define ReadInt32(ptr)                               \
   (   (((int32)(((uchar *)(ptr))[0])) << 24)         \
@@ -701,10 +705,10 @@ static int32 unique_task_id(void)
 #define  VENEER_CONSTRAINT_ON_CLASSES_G       32768
 #define  VENEER_CONSTRAINT_ON_IP_TABLE_SIZE_G 32768
 #define  VENEER_CONSTRAINT_ON_CLASSES  \
-  (glulx_mode ? VENEER_CONSTRAINT_ON_CLASSES_G  \
+  (target_machine != TARGET_ZCODE ? VENEER_CONSTRAINT_ON_CLASSES_G  \
               : VENEER_CONSTRAINT_ON_CLASSES_Z)
 #define  VENEER_CONSTRAINT_ON_IP_TABLE_SIZE  \
-  (glulx_mode ? VENEER_CONSTRAINT_ON_IP_TABLE_SIZE_G  \
+  (target_machine != TARGET_ZCODE ? VENEER_CONSTRAINT_ON_IP_TABLE_SIZE_G  \
               : VENEER_CONSTRAINT_ON_IP_TABLE_SIZE_Z)
 
 #define  GLULX_HEADER_SIZE 36
@@ -2343,6 +2347,7 @@ extern expression_tree_node *ET;
 
 extern int z_system_constant_list[];
 extern int glulx_system_constant_list[];
+extern int wasm_system_constant_list[];
 
 extern int32 value_of_system_constant(int t);
 extern char *name_of_system_constant(int t);
@@ -2444,7 +2449,14 @@ extern int
 
 extern int oddeven_packing_switch;
 
-extern int glulx_mode, compression_switch;
+typedef enum target_machine_t {
+    TARGET_ZCODE,
+    TARGET_GLULX,
+    TARGET_WASM
+} target_machine_t;
+
+extern target_machine_t target_machine;
+extern int compression_switch;
 extern int32 requested_glulx_version;
 
 extern int error_format,    store_the_text,       asm_trace_setting,

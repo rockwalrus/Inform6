@@ -307,15 +307,15 @@ static void list_memory_sizes(void)
     printf("|  %25s = %-7d |\n","MAX_CLASSES",MAX_CLASSES);
     printf("|  %25s = %-7d |\n","MAX_DICT_ENTRIES",MAX_DICT_ENTRIES);
     printf("|  %25s = %-7d |\n","DICT_WORD_SIZE",DICT_WORD_SIZE);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","DICT_CHAR_SIZE",DICT_CHAR_SIZE);
     printf("|  %25s = %-7d |\n","MAX_DYNAMIC_STRINGS",MAX_DYNAMIC_STRINGS);
     printf("|  %25s = %-7d |\n","MAX_EXPRESSION_NODES",MAX_EXPRESSION_NODES);
     printf("|  %25s = %-7d |\n","MAX_GLOBAL_VARIABLES",MAX_GLOBAL_VARIABLES);
     printf("|  %25s = %-7d |\n","HASH_TAB_SIZE",HASH_TAB_SIZE);
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","ZCODE_HEADER_EXT_WORDS",ZCODE_HEADER_EXT_WORDS);
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","ZCODE_HEADER_FLAGS_3",ZCODE_HEADER_FLAGS_3);
     printf("|  %25s = %-7d |\n","MAX_INCLUSION_DEPTH",MAX_INCLUSION_DEPTH);
     printf("|  %25s = %-7d |\n","MAX_INDIV_PROP_TABLE_SIZE", MAX_INDIV_PROP_TABLE_SIZE);
@@ -323,29 +323,29 @@ static void list_memory_sizes(void)
     printf("|  %25s = %-7d |\n","MAX_LABELS",MAX_LABELS);
     printf("|  %25s = %-7d |\n","MAX_LINESPACE",MAX_LINESPACE);
     printf("|  %25s = %-7d |\n","MAX_LINK_DATA_SIZE",MAX_LINK_DATA_SIZE);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","MAX_LOCAL_VARIABLES",MAX_LOCAL_VARIABLES);
     printf("|  %25s = %-7d |\n","MAX_LOW_STRINGS",MAX_LOW_STRINGS);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","MEMORY_MAP_EXTENSION",
         MEMORY_MAP_EXTENSION);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","MAX_NUM_STATIC_STRINGS",
         MAX_NUM_STATIC_STRINGS);
     printf("|  %25s = %-7d |\n","MAX_OBJECTS",MAX_OBJECTS);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","GLULX_OBJECT_EXT_BYTES",
         GLULX_OBJECT_EXT_BYTES);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","MAX_OBJ_PROP_COUNT",
         MAX_OBJ_PROP_COUNT);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","MAX_OBJ_PROP_TABLE_SIZE",
         MAX_OBJ_PROP_TABLE_SIZE);
     printf("|  %25s = %-7d |\n","MAX_PROP_TABLE_SIZE",MAX_PROP_TABLE_SIZE);
     printf("|  %25s = %-7d |\n","MAX_QTEXT_SIZE",MAX_QTEXT_SIZE);
     printf("|  %25s = %-7d |\n","MAX_SOURCE_FILES",MAX_SOURCE_FILES);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7ld |\n","MAX_STACK_SIZE",
            (long int) MAX_STACK_SIZE);
     printf("|  %25s = %-7d |\n","MAX_STATIC_DATA",MAX_STATIC_DATA);
@@ -356,7 +356,7 @@ static void list_memory_sizes(void)
     printf("|  %25s = %-7d |\n","TRANSCRIPT_FORMAT",TRANSCRIPT_FORMAT);
     printf("|  %25s = %-7ld |\n","MAX_TRANSCRIPT_SIZE",
            (long int) MAX_TRANSCRIPT_SIZE);
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7ld |\n","MAX_UNICODE_CHARS",
            (long int) MAX_UNICODE_CHARS);
     printf("|  %25s = %-7d |\n","WARN_UNUSED_ROUTINES",WARN_UNUSED_ROUTINES);
@@ -551,7 +551,7 @@ extern void set_memory_sizes(int size_flag)
 
 extern void adjust_memory_sizes()
 {
-  if (!glulx_mode) {
+  if (target_machine == TARGET_ZCODE) {
     MAX_ZCODE_SIZE = MAX_ZCODE_SIZE_z;
     MAX_PROP_TABLE_SIZE = MAX_PROP_TABLE_SIZE_z;
     MAX_GLOBAL_VARIABLES = MAX_GLOBAL_VARIABLES_z;

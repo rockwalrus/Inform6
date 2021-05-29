@@ -282,7 +282,8 @@ FILE *sf_handle;
 
 static void sf_put(int c)
 {
-    if (!glulx_mode) {
+    switch (target_machine) {
+      case TARGET_ZCODE:
 
       /*  The checksum is the unsigned sum mod 65536 of the bytes in the
           story file from 0x0040 (first byte after header) to the end.
@@ -294,10 +295,9 @@ static void sf_put(int c)
       {   checksum_low_byte-=256;
           if (++checksum_high_byte==256) checksum_high_byte=0;
       }
+      break;
 
-    }
-    else {
-
+      case TARGET_GLULX:
       /*  The checksum is the unsigned 32-bit sum of the entire story file,
           considered as a list of 32-bit words, with the checksum field
           being zero. */
@@ -318,6 +318,7 @@ static void sf_put(int c)
       }
       
       checksum_count = (checksum_count+1) & 3;
+      break;
       
     }
 
@@ -1278,10 +1279,18 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 extern void output_file(void)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     output_file_z();
-  else
+    break;
+
+    case TARGET_GLULX:
     output_file_g();
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 /* ------------------------------------------------------------------------- */
@@ -1341,7 +1350,7 @@ extern void open_transcript_file(char *what_of)
     write_to_transcript_file(topline_buffer, STRCTX_INFO);
     if (TRANSCRIPT_FORMAT == 1) {
         write_to_transcript_file("[I:info, G:game text, V:veneer text, L:lowmem string, A:abbreviation, D:dict word, O:object name, S:symbol, X:infix]", STRCTX_INFO);
-        if (!glulx_mode)
+        if (target_machine == TARGET_ZCODE)
             write_to_transcript_file("[H:game text inline in opcode, W:veneer text inline in opcode]", STRCTX_INFO);
     }
     write_to_transcript_file("",  STRCTX_INFO);
@@ -1630,7 +1639,7 @@ static void write_debug_backpatch
 }
 
 extern void write_debug_object_backpatch(int32 object_number)
-{   if (glulx_mode)
+{   if (target_machine != TARGET_ZCODE)
     {   write_debug_backpatch(&object_backpatch_accumulator, object_number - 1);
     }
     else
@@ -1685,7 +1694,7 @@ extern void write_debug_array_backpatch(int32 offset)
 }
 
 static int32 backpatch_array_address(int32 offset)
-{   return (glulx_mode ? arrays_offset : variables_offset) + offset;
+{   return (target_machine != TARGET_ZCODE ? arrays_offset : variables_offset) + offset;
 }
 
 extern void write_debug_grammar_backpatch(int32 offset)
@@ -1784,7 +1793,7 @@ static void apply_debug_information_symbol_backpatches()
 
 static void write_debug_system_constants()
 {   int *system_constant_list =
-        glulx_mode ? glulx_system_constant_list : z_system_constant_list;
+        target_machine == TARGET_GLULX ? glulx_system_constant_list : target_machine == TARGET_WASM ? wasm_system_constant_list : z_system_constant_list;
     int system_constant_index = 0;
 
     /* Store system constants. */
@@ -1806,7 +1815,7 @@ extern void end_debug_file()
 {   write_debug_system_constants();
     debug_file_printf("</inform-story-file>\n");
 
-    if (glulx_mode)
+    if (target_machine != TARGET_ZCODE)
     {   apply_debug_information_backpatches(&object_backpatch_accumulator);
     } else
     {   apply_debug_information_backpatches(&packed_code_backpatch_accumulator);
@@ -1920,7 +1929,7 @@ extern void files_allocate_arrays(void)
     InputFiles = my_malloc(MAX_SOURCE_FILES*sizeof(FileId), 
         "input file storage");
     if (debugfile_switch)
-    {   if (glulx_mode)
+    {   if (target_machine != TARGET_ZCODE)
         {   initialise_accumulator
                 (&object_backpatch_accumulator, &backpatch_object_address);
         } else
@@ -1949,7 +1958,7 @@ extern void files_free_arrays(void)
 {   my_free(&filename_storage, "filename storage");
     my_free(&InputFiles, "input file storage");
     if (debugfile_switch)
-    {   if (!glulx_mode)
+    {   if (target_machine == TARGET_ZCODE)
         {   tear_down_accumulator(&object_backpatch_accumulator);
         } else
         {   tear_down_accumulator(&packed_code_backpatch_accumulator);

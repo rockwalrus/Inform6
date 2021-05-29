@@ -110,8 +110,8 @@ static void list_grammar_line_v1(int mark)
     int ix, len;
     char *str;
 
-    /* There is no GV1 for Glulx. */
-    if (glulx_mode)
+    /* GV1 is only for the Z Machine. */
+    if (target_machine != TARGET_ZCODE)
         return;
     
     action = (grammar_lines[mark] << 8) | (grammar_lines[mark+1]);
@@ -186,7 +186,7 @@ static void list_grammar_line_v2(int mark)
     int ix, len;
     char *str;
     
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         action = (grammar_lines[mark] << 8) | (grammar_lines[mark+1]);
         flags = (action & 0x400);
         action &= 0x3FF;
@@ -201,7 +201,7 @@ static void list_grammar_line_v2(int mark)
     printf("  *");
     while (grammar_lines[mark] != 15) {
         int toktype, tokdat, tokalt;
-        if (!glulx_mode) {
+        if (target_machine == TARGET_ZCODE) {
             toktype = grammar_lines[mark] & 0x0F;
             tokalt = (grammar_lines[mark] >> 4) & 0x03;
             mark += 1;
@@ -361,7 +361,7 @@ extern assembly_operand action_of_name(char *name)
     if (stypes[j] == FAKE_ACTION_T)
     {   INITAO(&AO);
         AO.value = svals[j];
-        if (!glulx_mode)
+        if (target_machine == TARGET_ZCODE)
           AO.type = LONG_CONSTANT_OT;
         else
           set_constant_ot(&AO);
@@ -382,7 +382,7 @@ extern assembly_operand action_of_name(char *name)
     INITAO(&AO);
     AO.value = svals[j];
     AO.marker = ACTION_MV;
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
       AO.type = (module_switch)?LONG_CONSTANT_OT:SHORT_CONSTANT_OT;
       if (svals[j] >= 256) AO.type = LONG_CONSTANT_OT;
     }
@@ -629,7 +629,7 @@ into Inform, so suggest rewriting grammar using general parsing routines");
     /*  In Glulx, that's 5*32 + 4 = 164 bytes */
 
     mark = grammar_lines_top;
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if (mark + 100 >= MAX_LINESPACE)
         {   discard_token_location(beginning_debug_location);
             memoryerror("MAX_LINESPACE", MAX_LINESPACE);
@@ -644,7 +644,7 @@ into Inform, so suggest rewriting grammar using general parsing routines");
 
     Inform_verbs[verbnum].l[line] = mark;
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         mark = mark + 2;
         TOKEN_SIZE = 3;
     }
@@ -823,7 +823,7 @@ tokens in any line (unless you're compiling with library 6/3 or later)");
                 bytecode |= 0x10;
             }
             grammar_lines[mark++] = bytecode;
-            if (!glulx_mode) {
+            if (target_machine == TARGET_ZCODE) {
                 grammar_lines[mark++] = wordcode/256;
                 grammar_lines[mark++] = wordcode%256;
             }
@@ -883,7 +883,7 @@ Library 6/3 or later");
         debug_file_printf("</table-entry>");
     }
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         if (reverse_action)
             j = j + 0x400;
         grammar_lines[mark++] = j/256;
@@ -957,7 +957,7 @@ extern void make_verb(void)
     for (i=0; i<no_given; i++)
     {   dictionary_add(English_verbs_given[i],
             0x41 + ((meta_verb_flag)?0x02:0x00),
-            (glulx_mode)?(0xffff-Inform_verb):(0xff-Inform_verb), 0);
+            (target_machine != TARGET_ZCODE)?(0xffff-Inform_verb):(0xff-Inform_verb), 0);
         register_verb(English_verbs_given[i], Inform_verb);
     }
 
@@ -1007,7 +1007,7 @@ extern void extend_verb(void)
               warning_named("Verb disagrees with previous verbs:", token_text);
             l = Inform_verb;
             dictionary_set_verb_number(token_text,
-              (glulx_mode)?(0xffff-no_Inform_verbs):(0xff-no_Inform_verbs));
+              (target_machine != TARGET_ZCODE)?(0xffff-no_Inform_verbs):(0xff-no_Inform_verbs));
             /* make call to renumber verb in English_verb_list too */
             if (find_or_renumber_verb(token_text, &no_Inform_verbs) == -1)
               warning_named("Verb to extend not found in English_verb_list:",
@@ -1088,7 +1088,7 @@ extern void init_verbs_vars(void)
     adjective_sort_code = NULL;
     English_verb_list = NULL;
 
-    if (!glulx_mode)
+    if (target_machine == TARGET_ZCODE)
         grammar_version_number = 1;
     else
         grammar_version_number = 2;

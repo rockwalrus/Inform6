@@ -434,6 +434,10 @@ static char *opcode_list_g[] = {
     ""
 };
 
+static char *opcode_list_w[] = {
+""
+};
+
 keyword_group opcode_macros =
 { { "" },
   OPCODE_MACRO_TT, FALSE, TRUE
@@ -445,6 +449,9 @@ static char *opmacro_list_g[] = {
     "pull", "push",
     ""
 };
+
+static char *opmacro_list_w[] = { "" };
+
 
 keyword_group directives =
 { { "abbreviate", "array", "attribute", "class", "constant",
@@ -614,13 +621,21 @@ static void make_keywords_tables(void)
 {   int i, j, h, tp=0;
     char **oplist, **maclist;
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+        case TARGET_ZCODE:
         oplist = opcode_list_z;
         maclist = opmacro_list_z;
-    }
-    else {
+	break;
+
+	case TARGET_GLULX:
         oplist = opcode_list_g;
         maclist = opmacro_list_g;
+	break;
+
+	case TARGET_WASM:
+        oplist = opcode_list_w;
+        maclist = opmacro_list_w;
+	break;
     }
 
     for (j=0; *(oplist[j]); j++) {
@@ -1554,7 +1569,7 @@ extern void get_next_token(void)
             *lex_p++ = 0;
             circle[circle_position].type = NUMBER_TT;
             circle[circle_position].value = n;
-            if (!glulx_mode && dont_enter_into_symbol_table != -2) error("Floating-point literals are not available in Z-code");
+            if (target_machine == TARGET_ZCODE && dont_enter_into_symbol_table != -2) error("Floating-point literals are not available in Z-code");
             break;
 
         case RADIX_CODE:

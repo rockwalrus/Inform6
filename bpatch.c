@@ -334,10 +334,16 @@ symbol");
 
 extern int32 backpatch_value(int32 value)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     return backpatch_value_z(value);
-  else
+ 
+    case TARGET_GLULX:
     return backpatch_value_g(value);
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 static void backpatch_zmachine_z(int mv, int zmachine_area, int32 offset)
@@ -395,10 +401,18 @@ static void backpatch_zmachine_g(int mv, int zmachine_area, int32 offset)
 
 extern void backpatch_zmachine(int mv, int zmachine_area, int32 offset)
 {
-  if (!glulx_mode)
+  switch (target_machine) {
+    case TARGET_ZCODE:
     backpatch_zmachine_z(mv, zmachine_area, offset);
-  else
+    break;
+
+    case TARGET_GLULX:
     backpatch_zmachine_g(mv, zmachine_area, offset);
+    break;
+
+    case TARGET_WASM:
+    WABORT;
+  }
 }
 
 extern void backpatch_zmachine_image_z(void)

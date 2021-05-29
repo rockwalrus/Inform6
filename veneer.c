@@ -36,7 +36,8 @@ extern void compile_initial_routine(void)
     sflags[j] |= SYSTEM_SFLAG + USED_SFLAG;
     if (trace_fns_setting==3) sflags[j] |= STAR_SFLAG;
 
-    if (!glulx_mode) {
+    switch (target_machine) {
+        case TARGET_ZCODE:
 
         INITAOTV(&AO, LONG_CONSTANT_OT, 0);
         AO.marker = MAIN_MV;
@@ -49,10 +50,9 @@ extern void compile_initial_routine(void)
             assemblez_1_to(call_zc, AO, temp_var1);
 
         assemblez_0(quit_zc);
+	break;
 
-    }
-    else {
-
+        case TARGET_GLULX:
         INITAOTV(&AO, CONSTANT_OT, 0);
         AO.marker = MAIN_MV;
 
@@ -60,6 +60,10 @@ extern void compile_initial_routine(void)
 
         assembleg_3(call_gc, AO, zero_operand, zero_operand);
         assembleg_1(return_gc, zero_operand);
+	break;
+
+	case TARGET_WASM:
+	WABORT;
 
     }
 
@@ -1936,6 +1940,1036 @@ static VeneerRoutine VRs_g[VENEER_ROUTINES] =
 
 };
 
+static VeneerRoutine VRs_w[VENEER_ROUTINES] =
+{
+    {
+        /*  Box__Routine: Display the given array of text as a box quote.
+            This is a very simple implementation; the library should provide
+            a fancier version.
+        */
+        "Box__Routine",
+        "maxwid arr ix;\
+           maxwid = 0;\
+           glk($0086, 7);\
+           for (ix=0 : ix<arr-->0 : ix++) {\
+             print (string) arr-->(ix+1);\
+             new_line;\
+           }\
+           glk($0086, 0);\
+         ]", "", "", "", "", ""
+    },
+
+    /*  This batch of routines is expected to be defined (rather better) by
+        the Inform library: these minimal forms here are provided to prevent
+        tiny non-library-using programs from failing to compile when certain
+        legal syntaxes (such as <<Action a b>>;) are used.                   */
+
+    {   "R_Process",
+        "a b c d; print \"Action <\", a, \" \", b, \" \", c;\
+         if (d) print \", \", d; print \">^\";\
+         ]", "", "", "", "", ""
+    },
+    {   "DefArt",
+        "obj; print \"the \", obj; ]", "", "", "", "", ""
+    },
+    {   "InDefArt",
+        "obj; print \"a \", obj; ]", "", "", "", "", ""
+    },
+    {   "CDefArt",
+        "obj; print \"The \", obj; ]", "", "", "", "", ""
+    },
+    {   "CInDefArt",
+        "obj; print \"A \", obj; ]", "", "", "", "", ""
+    },
+    {   "PrintShortName",
+        "obj q; switch(metaclass(obj))\
+         {   0: print \"nothing\";\
+             Object: q = obj-->GOBJFIELD_NAME; @streamstr q;\
+             Class: print \"class \"; q = obj-->GOBJFIELD_NAME; @streamstr q;\
+             Routine: print \"(routine at \", obj, \")\";\
+             String: print \"(string at \", obj, \")\";\
+         } ]", "", "", "", "", ""
+    },
+    {   "EnglishNumber",
+        "obj; print obj; ]", "", "", "", "", ""
+    },
+    {
+        /*  Print__PName: Print the name of a property.
+        */
+        "Print__PName",
+        "prop ptab cla maxcom minind maxind str;\
+           if (prop & $FFFF0000) {\
+             cla = #classes_table-->(prop & $FFFF);\
+             print (name) cla, \"::\";\
+             @ushiftr prop 16 prop;\
+           }\
+           ptab = #identifiers_table;\
+           maxcom = ptab-->1;\
+           minind = INDIV_PROP_START;\
+           maxind = minind + ptab-->3;\
+           str = 0;\
+           if (prop >= 0 && prop < maxcom) {\
+             str = (ptab-->0)-->prop;\
+           }\
+           else if (prop >= minind && prop < maxind) {\
+             str = (ptab-->2)-->(prop-minind);\
+           }\
+           if (str)\
+             print (string) str;\
+           else\
+             print \"<number \", prop, \">\";\
+         ]", "", "", "", "", ""
+    },
+
+    /*  The remaining routines make up the run-time half of the object
+        orientation system, and need never be present for Inform 5 programs. */
+
+    {
+        /*  WV__Pr: Write a value to the property for the given object.
+        */
+        "WV__Pr",
+        "obj id val addr;\
+           addr = obj.&id;\
+           if (addr == 0) {\
+             RT__Err(\"write\", obj, id);\
+             return 0;\
+           }\
+           addr-->0 = val;\
+           return 0;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  RV__Pr: Read a value to the property for the given object.
+        */
+        "RV__Pr",
+        "obj id addr;\
+           addr = obj.&id;\
+           if (addr == 0) {\
+             if (id > 0 && id < INDIV_PROP_START) {\
+               return #cpv__start-->id;\
+             }\
+             RT__Err(\"read\", obj, id);\
+             return 0;\
+           }\
+           return addr-->0;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  CA__Pr: Call, that is, print-or-run-or-read, a property:
+            this exactly implements obj..prop(...).  Note that
+            classes (members of Class) have 5 built-in properties
+            inherited from Class: create, recreate, destroy,
+            remaining and copy.  Implementing these here prevents
+            the need for a full metaclass inheritance scheme.
+        */
+        "CA__Pr",
+        "_vararg_count obj id zr s s2 z addr len m val;\
+           @copy sp obj;\
+           @copy sp id;\
+           _vararg_count = _vararg_count - 2;\
+           zr = Z__Region(obj);\
+           if (zr == 2) {\
+             if (id == call) {\
+               s = sender; sender = self; self = obj;\
+               #ifdef action; sw__var=action; #endif;\
+               @call obj _vararg_count z;\
+               self = sender; sender = s;\
+               return z;\
+             }\
+             jump Call__Error;\
+           }",
+        "  if (zr == 3) {\
+             if (id == print) {\
+               @streamstr obj; rtrue;\
+             }\
+             if (id == print_to_array) {\
+               if (_vararg_count >= 2) {\
+                 @copy sp m;\
+                 @copy sp len;\
+               }\
+               else {\
+                 RT__Err(37); rfalse;\
+               }\
+               s2 = glk($0048);\
+               s = glk($0043, m+4, len-4, 1, 0);",
+        "      if (s) {\
+                 glk($0047, s);\
+                 @streamstr obj;\
+                 glk($0047, s2);\
+                 @copy $ffffffff sp;\
+                 @copy s sp;\
+                 @glk $0044 2 0;\
+                 @copy sp len;\
+                 @copy sp 0;\
+                 m-->0 = len;\
+                 return len;\
+               }\
+               rfalse;\
+             }\
+             jump Call__Error;\
+           }",
+        "  if (zr ~= 1)\
+             jump Call__Error;\
+           #ifdef DEBUG;#ifdef InformLibrary;\
+           if (debug_flag & 1 ~= 0) {\
+             debug_flag--;\
+             print \"[ ~\", (name) obj, \"~.\", (property) id, \"(\";\
+             @stkcopy _vararg_count;\
+             for (val=0 : val < _vararg_count : val++) {\
+               if (val) print \", \";\
+               @streamnum sp;\
+             }\
+             print \") ]^\";\
+             debug_flag++;\
+           }\
+           #endif;#endif;\
+           if (obj in Class) {\
+             switch (id) {\
+               remaining:\
+                 return Cl__Ms(obj, id);\
+               copy:\
+                 @copy sp m;\
+                 @copy sp val;\
+                 return Cl__Ms(obj, id, m, val);\
+               create, destroy, recreate:\
+                 m = _vararg_count+2;\
+                 @copy id sp;\
+                 @copy obj sp;\
+                 @call Cl__Ms m val;\
+                 return val;\
+             }\
+           }",
+        "  addr = obj.&id;\
+           if (addr == 0) {\
+             if (id > 0 && id < INDIV_PROP_START) {\
+               addr = #cpv__start + 4*id;\
+               len = 4;\
+             }\
+             else {\
+               jump Call__Error;\
+             }\
+           }\
+           else {\
+             len = obj.#id;\
+           }\
+           for (m=0 : 4*m<len : m++) {\
+             val = addr-->m;\
+             if (val == -1) rfalse;\
+             switch (Z__Region(val)) {\
+               2:\
+                 s = sender; sender = self; self = obj; s2 = sw__var;\
+                 #ifdef LibSerial;\
+                 if (id==life) sw__var=reason_code; else sw__var=action;\
+                 #endif;",
+        "        @stkcopy _vararg_count;\
+                 @call val _vararg_count z;\
+                 self = sender; sender = s; sw__var = s2;\
+                 if (z ~= 0) return z;\
+               3:\
+                 @streamstr val;\
+                 new_line;\
+                 rtrue;\
+               default:\
+                 return val;\
+             }\
+           }\
+           rfalse;\
+           .Call__Error;\
+           RT__Err(\"send message\", obj, id);\
+           rfalse;\
+         ]"
+    },
+    {
+        /*  IB__Pr:  ++(individual property)                                 */
+
+        "IB__Pr",
+        "obj identifier x;\
+         x = obj.&identifier;\
+         if (x==0) { RT__Err(\"increment\", obj, identifier); return; }\
+         #ifdef INFIX;\
+         if (obj has infix__watching || (debug_flag & 15)) RT__TrPS(obj,identifier,(x-->0)+1);\
+         #ifnot; #ifdef DEBUG;\
+         if (debug_flag & 15) RT__TrPS(obj,identifier,(x-->0)+1);\
+         #endif; #endif;\
+         return ++(x-->0);\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  IA__Pr:  (individual property)++                                 */
+
+        "IA__Pr",
+        "obj identifier x;\
+         x = obj.&identifier;\
+         if (x==0) { RT__Err(\"increment\", obj, identifier); return; }\
+         #ifdef INFIX;\
+         if (obj has infix__watching || (debug_flag & 15))\
+         RT__TrPS(obj,identifier,(x-->0)+1);\
+         #ifnot; #ifdef DEBUG;\
+         if (debug_flag & 15) RT__TrPS(obj,identifier,(x-->0)+1);\
+         #endif; #endif;\
+         return (x-->0)++;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  DB__Pr:  --(individual property)                                 */
+
+        "DB__Pr",
+        "obj identifier x;\
+         x = obj.&identifier;\
+         if (x==0) { RT__Err(\"decrement\", obj, identifier); return; }\
+         #ifdef INFIX;\
+         if (obj has infix__watching || (debug_flag & 15)) RT__TrPS(obj,identifier,(x-->0)-1);\
+         #ifnot; #ifdef DEBUG;\
+         if (debug_flag & 15) RT__TrPS(obj,identifier,(x-->0)-1);\
+         #endif; #endif;\
+         return --(x-->0);\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  DA__Pr:  (individual property)--                                 */
+
+        "DA__Pr",
+        "obj identifier x;\
+         x = obj.&identifier;\
+         if (x==0) { RT__Err(\"decrement\", obj, identifier); return; }\
+         #ifdef INFIX;\
+         if (obj has infix__watching || (debug_flag & 15)) RT__TrPS(obj,identifier,(x-->0)-1);\
+         #ifnot; #ifdef DEBUG;\
+         if (debug_flag & 15) RT__TrPS(obj,identifier,(x-->0)-1);\
+         #endif; #endif;\
+         return (x-->0)--;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  RA__Pr: Read the property address of a given property value.
+            Returns zero if it isn't provided by the object. This
+            understands all the same concerns as RL__Pr().
+        */
+        "RA__Pr",
+        "obj id cla prop ix;\
+           if (id & $FFFF0000) {\
+             cla = #classes_table-->(id & $FFFF);\
+             if (~~(obj ofclass cla)) return 0;\
+             @ushiftr id 16 id;\
+             obj = cla;\
+           }\
+           prop = CP__Tab(obj, id);\
+           if (prop==0) return 0;\
+           if (obj in Class && cla == 0) {\
+             if (id < INDIV_PROP_START || id >= INDIV_PROP_START+8)\
+               return 0;\
+           }\
+           if (self ~= obj) {\
+             @aloadbit prop 72 ix;\
+             if (ix) return 0;\
+           }\
+           return prop-->1;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  RL__Pr: Read the property length of a given property value.
+            Returns zero if it isn't provided by the object. This understands
+            inherited values (of the form class::prop) as well as simple
+            property ids and the special metaclass methods. It also knows
+            that private properties can only be read if (self == obj).
+        */
+        "RL__Pr",
+        "obj id cla prop ix;\
+           if (id & $FFFF0000) {\
+             cla = #classes_table-->(id & $FFFF);\
+             if (~~(obj ofclass cla)) return 0;\
+             @ushiftr id 16 id;\
+             obj = cla;\
+           }\
+           prop = CP__Tab(obj, id);\
+           if (prop==0) return 0;\
+           if (obj in Class && cla == 0) {\
+             if (id < INDIV_PROP_START || id >= INDIV_PROP_START+8)\
+               return 0;\
+           }\
+           if (self ~= obj) {\
+             @aloadbit prop 72 ix;\
+             if (ix) return 0;\
+           }\
+           @aloads prop 1 ix;\
+           return WORDSIZE * ix;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  RA__Sc: Implement the \"superclass\" (::) operator. This
+            returns an compound property identifier, which is a
+            32-bit value.
+        */
+        "RA__Sc",
+        "cla id j;\
+           if ((cla notin Class) && (cla ~= Class or String or Routine or Object)) {\
+             RT__Err(\"be a '::' superclass\", cla, -1);\
+             rfalse;\
+           }\
+           for (j=0 : #classes_table-->j ~= 0 : j++) {\
+             if (cla == #classes_table-->j) {\
+               return (id * $10000 + j);\
+             }\
+           }\
+           RT__Err(\"make use of\", cla, id);\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  OP__Pr: Test whether the given object provides the given property.
+            This winds up calling RA__Pr().
+        */
+        "OP__Pr",
+        "obj id zr;\
+           zr = Z__Region(obj);\
+           if (zr == 3) {\
+             if (id == print or print_to_array) rtrue;\
+             rfalse;\
+           }\
+           if (zr == 2) {\
+             if (id == call) rtrue;\
+             rfalse;\
+           }\
+           if (zr ~= 1) rfalse;\
+           if (id >= INDIV_PROP_START && id < INDIV_PROP_START+8) {\
+             if (obj in Class) rtrue;\
+           }\
+           if (obj.&id ~= 0)\
+             rtrue;\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  OC__Cl: Test whether the given object is of the given class.
+            (implements the OfClass operator.)
+        */
+        "OC__Cl",
+        "obj cla zr jx inlist inlistlen;\
+           zr = Z__Region(obj);\
+           if (zr == 3) {\
+             if (cla == String) rtrue;\
+             rfalse;\
+           }\
+           if (zr == 2) {\
+             if (cla == Routine) rtrue;\
+             rfalse;\
+           }\
+           if (zr ~= 1) rfalse;\
+           if (cla == Class) {\
+             if (obj in Class\
+               || obj == Class or String or Routine or Object)\
+               rtrue;\
+             rfalse;\
+           }\
+           if (cla == Object) {\
+             if (obj in Class\
+               || obj == Class or String or Routine or Object)\
+               rfalse;\
+             rtrue;\
+           }\
+           if (cla == String or Routine) rfalse;\
+           if (cla notin Class) {\
+             RT__Err(\"apply 'ofclass' for\", cla, -1);\
+             rfalse;\
+           }\
+           inlist = obj.&2;\
+           if (inlist == 0) rfalse;\
+           inlistlen = (obj.#2) / WORDSIZE;\
+           for (jx=0 : jx<inlistlen : jx++) {\
+             if (inlist-->jx == cla) rtrue;\
+           }\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  Copy__Primitive: Routine to \"deep copy\" objects.
+        */
+        "Copy__Primitive",
+        "o1 o2 p1 p2 pcount i j propid proplen val pa1 pa2;\
+           for (i=1 : i<=NUM_ATTR_BYTES : i++) {\
+             o1->i = o2->i;\
+           }\
+           p2 = o2-->GOBJFIELD_PROPTAB;\
+           pcount = p2-->0;\
+           p2 = p2+4;\
+           for (i=0 : i<pcount : i++) {\
+             @aloads p2 0 propid;\
+             @aloads p2 1 proplen;\
+             p1 = CP__Tab(o1, propid);\
+             if (p1) {\
+               @aloads p1 1 val;\
+               if (proplen == val) {\
+                 @aloads p2 4 val;\
+                 @astores p1 4 val;\
+                 pa1 = p1-->1;\
+                 pa2 = p2-->1;\
+                 for (j=0 : j<proplen : j++)\
+                   pa1-->j = pa2-->j;\
+               }\
+             }\
+             p2 = p2+10;\
+           }\
+         ]", "", "", "", "", ""
+    },
+    {   /*  RT__Err:  for run-time errors occurring in the above: e.g.,
+                      an attempt to write to a non-existent individual
+                      property                                               */
+
+        "RT__Err",
+        "crime obj id size p q;\
+         print \"^[** Programming error: \";\
+         if (crime<0) jump RErr;\
+         if (crime==1) { print \"class \"; q = obj-->GOBJFIELD_NAME; @streamstr q;\
+         \": 'create' can have 0 to 3 parameters only **]\";}\
+         if (crime == 40) \"tried to change printing variable \",\
+         obj, \"; must be 0 to \", #dynam_string_table-->0-1, \" **]\";\
+         if (crime == 32) \"objectloop broken because the object \",\
+         (name) obj, \" was moved while the loop passed through it **]\";\
+         if (crime == 33) \"tried to print (char) \", obj,\
+         \", which is not a valid Glk character code for output **]\";\
+         if (crime == 34) \"tried to print (address) on something not the \",\
+         \"address of a dict word **]\";\
+         if (crime == 35) \"tried to print (string) on something not a \",\
+         \"string **]\";\
+         if (crime == 36) \"tried to print (object) on something not an \",\
+         \"object or class **]\";\
+         if (crime == 37) \"tried to call Glulx print_to_array with only \",\
+         \"one argument **]\";",
+        "if (crime < 32) { print \"tried to \";\
+         if (crime >= 28) { if (crime==28 or 29) print \"read from \";\
+         else print \"write to \";\
+         if (crime==29 or 31) print \"-\"; print \"->\", obj,\
+         \" in the\"; switch(size&7){0,1:q=0; 2:print \" string\";\
+         q=1; 3:print \" table\";q=1; 4:print \" buffer\";q=WORDSIZE;} \
+         if(size&16) print\" (->)\"; if(size&8) print\" (-->)\";\
+         \" array ~\", (string) #array_names_offset-->(p+1),\
+         \"~, which has entries \", q, \" up to \",id,\" **]\"; }\
+         if (crime >= 24 && crime <=27) { if (crime<=25) print \"read\";\
+         else print \"write\"; print \" outside memory using \";\
+         switch(crime) { 24,26:\"-> **]\"; 25,27:\"--> **]\"; } }\
+         if (crime < 4) print \"test \"; else\
+         if (crime < 12 || crime > 20) print \"find the \"; else\
+         if (crime < 14) print \"use \";\
+         if (crime==20) \"divide by zero **]\"; print \"~\";\
+         switch(crime) {\
+         2: print \"in~ or ~notin\"; 3: print \"has~ or ~hasnt\";\
+         4: print \"parent\"; 5: print \"eldest\"; 6: print \"child\";\
+         7: print \"younger\"; 8: print \"sibling\"; 9: print \"children\";\
+         10: print \"youngest\"; 11: print \"elder\";\
+         12: print \"objectloop\"; 13: print \"}~ at end of ~objectloop\";\
+         14: \"give~ an attribute to \", (name) obj, \" **]\";\
+         15: \"remove~ \", (name) obj, \" **]\";",
+        "16,17,18: print \"move~ \", (name) obj, \" to \", (name) id;\
+         if (crime==18) { print \", which would make a loop: \",(name) obj;\
+         p=id; if (p==obj) p=obj;\
+         else do { print \" in \", (name) p; p=parent(p);} until (p==obj);\
+         \" in \", (name) p, \" **]\"; }\
+         \" **]\"; 19: \"give~ or test ~has~ or ~hasnt~ with a non-attribute"\
+        " on the object \",(name) obj,\" **]\";\
+         21: print \".&\"; 22: print \".#\"; 23: print \".\"; }\
+         \"~ of \", (name) obj, \" **]\"; }",
+        ".RErr; if (obj==0 || obj->0>=$70 && obj->0<=$7F) {\
+         if (obj && obj in Class) print \"class \";\
+         if (obj) print (object) obj;else print \"nothing\";print\" \";}\
+         print \"(object number \", obj, \") \";\
+         if (id<0) print \"is not of class \", (name) -id;",
+        "else\
+         {   print \" has no property \", (property) id;\
+             p = #identifiers_table;\
+             size = INDIV_PROP_START + p-->3;\
+             if (id<0 || id>=size)\
+                 print \" (and nor has any other object)\";\
+         }\
+         print \" to \", (string) crime, \" **]^\";\
+         ]", ""
+    },
+    {
+        /*  Z__Region:  Determines whether a value is:
+            1  an object number
+            2  a code address
+            3  a string address
+            0  none of the above
+        */
+        "Z__Region",
+        "addr tb endmem;\
+           if (addr<36) rfalse;\
+           @getmemsize endmem;\
+           @jgeu addr endmem?outrange;\
+           tb=addr->0;\
+           if (tb >= $E0) return 3;\
+           if (tb >= $C0) return 2;\
+           if (tb >= $70 && tb <= $7F && addr >= (0-->2)) return 1;\
+           .outrange;\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+    {   /*  Unsigned__Compare:  returns 1 if x>y, 0 if x=y, -1 if x<y        */
+
+        "Unsigned__Compare",
+        "x y;\
+         @jleu x y ?lesseq;\
+         return 1;\
+         .lesseq;\
+         @jeq x y ?equal;\
+         return -1;\
+         .equal;\
+         return 0;\
+         ]", "", "", "", "", ""
+    },
+    {   /*  Meta__class:  returns the metaclass of an object                 */
+
+        "Meta__class",
+        "obj;\
+         switch(Z__Region(obj))\
+         {   2: return Routine;\
+             3: return String;\
+             1: if (obj in Class\
+                    || obj == Class or String or Routine or Object)\
+                  return Class;\
+                return Object;\
+         }\
+         rfalse;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  CP__Tab: Search a property table for the given identifier.
+            The definition here is a bit different from the Z-code veneer.
+            This just searches the property table of obj for an entry with
+            the given identifier. It return the address of the property
+            entry, or 0 if nothing found. (Remember that the value returned
+            is not the address of the property *data*; it's the structure
+            which contains the address/length/flags.)
+        */
+        "CP__Tab",
+        "obj id otab max res;\
+           if (Z__Region(obj)~=1) {RT__Err(23, obj); rfalse;}\
+           otab = obj-->GOBJFIELD_PROPTAB;\
+           if (otab == 0) return 0;\
+           max = otab-->0;\
+           otab = otab+4;\
+           @binarysearch id 2 otab 10 max 0 0 res;\
+           return res;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  Cl__Ms: Implements the five message-receiving properties of
+            Classes.
+        */
+        "Cl__Ms",
+        "_vararg_count obj id a b x y;\
+           @copy sp obj;\
+           @copy sp id;\
+           _vararg_count = _vararg_count - 2;\
+           switch (id) {\
+             create:\
+               if (children(obj) <= 1) rfalse;\
+               x = child(obj);\
+               remove x;\
+               if (x provides create) {\
+                 @copy create sp;\
+                 @copy x sp;\
+                 y = _vararg_count + 2;\
+                 @call CA__Pr y 0;\
+               }\
+               return x;\
+             recreate:\
+               @copy sp a;\
+               _vararg_count--;\
+               if (~~(a ofclass obj)) {\
+                 RT__Err(\"recreate\", a, -obj);\
+                 rfalse;\
+               }\
+               if (a provides destroy)\
+                 a.destroy();\
+               Copy__Primitive(a, child(obj));\
+               if (a provides create) {\
+                 @copy create sp;\
+                 @copy a sp;\
+                 y = _vararg_count + 2;\
+                 @call CA__Pr y 0;\
+               }\
+               rfalse;\
+             destroy:\
+               @copy sp a;\
+               _vararg_count--;\
+               if (~~(a ofclass obj)) {\
+                 RT__Err(\"destroy\", a, -obj);\
+                 rfalse;\
+               }\
+               if (a provides destroy)\
+                 a.destroy();\
+               Copy__Primitive(a, child(obj));\
+               move a to obj;\
+               rfalse;\
+             remaining:\
+               return children(obj)-1;\
+             copy:\
+               @copy sp a;\
+               @copy sp b;\
+               _vararg_count = _vararg_count - 2;\
+               if (~~(a ofclass obj)) {\
+                 RT__Err(\"copy\", a, -obj);\
+                 rfalse;\
+               }\
+               if (~~(b ofclass obj)) {\
+                 RT__Err(\"copy\", b, -obj);\
+                 rfalse;\
+               }\
+               Copy__Primitive(a, b);\
+               rfalse;\
+           }\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  RT__ChT:  Check at run-time that a proposed object move is legal.
+            Cause error and do nothing if not; otherwise move
+        */
+        "RT__ChT",
+        "obj1 obj2 ix;\
+           if (obj1==0 || Z__Region(obj1)~=1\
+             || (obj1 == Class or String or Routine or Object) || obj1 in Class)\
+             return RT__Err(16, obj1, obj2);\
+           if (obj2==0 || Z__Region(obj2)~=1\
+             || (obj2 == Class or String or Routine or Object) || obj2 in Class)\
+             return RT__Err(17, obj1, obj2);\
+           ix = obj2;\
+           while (ix ~= 0) {\
+             if (ix==obj1) return RT__Err(18, obj1, obj2);\
+             ix = parent(ix);\
+           }\
+           #ifdef INFIX;\
+           if (obj1 has infix__watching\
+             || obj2 has infix__watching || (debug_flag & 15))\
+               print \"[Moving \", (name) obj1, \" to \", (name) obj2, \"]^\";\
+           #ifnot; #ifdef DEBUG;\
+           if (debug_flag & 15)\
+             print \"[Moving \", (name) obj1, \" to \", (name) obj2, \"]^\";\
+           #endif; #endif;\
+           OB__Move(obj1, obj2);\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  RT__ChR:  Check at run-time that a proposed object remove is legal.
+            Cause error and do nothing if not; otherwise remove
+        */
+        "RT__ChR",
+        "obj1;\
+           if (obj1==0 || Z__Region(obj1)~=1\
+             || (obj1 == Class or String or Routine or Object) || obj1 in Class)\
+             return RT__Err(15, obj1);\
+           #ifdef INFIX;\
+           if (obj1 has infix__watching || (debug_flag & 15))\
+             print \"[Removing \", (name) obj1, \"]^\";\
+           #ifnot; #ifdef DEBUG;\
+           if (debug_flag & 15)\
+             print \"[Removing \", (name) obj1, \"]^\";\
+           #endif; #endif;\
+           OB__Remove(obj1);\
+         ]", "", "", "", "", ""
+    },
+    {   /*  RT__ChG:  check at run-time that a proposed attr give is legal
+                      cause error and do nothing if not; otherwise give */
+
+        "RT__ChG",
+        "obj1 a;\
+         if (Z__Region(obj1) ~= 1) return RT__Err(14,obj1);\
+         if (obj1 in Class || obj1 == Class or String or Routine or Object)\
+           return RT__Err(14,obj1);\
+         if (a<0 || a>=NUM_ATTR_BYTES*8) return RT__Err(19,obj1);\
+         if (obj1 has a) return;",
+        "#ifdef INFIX;\
+         if (a ~= workflag && (obj1 has infix__watching || (debug_flag & 15)))\
+         print \"[Giving \", (name) obj1, \" \", (DebugAttribute) a, \"]^\";\
+         #ifnot; #ifdef DEBUG;\
+         if (a ~= workflag && debug_flag & 15)\
+         print \"[Giving \", (name) obj1, \" \", (DebugAttribute) a, \"]^\";\
+         #endif; #endif;\
+         give obj1 a; ]", "", "", "", ""
+    },
+    {   /*  RT__ChGt:  check at run-time that a proposed attr give ~ is legal
+                      cause error and do nothing if not; otherwise give */
+
+        "RT__ChGt",
+        "obj1 a;\
+         if (Z__Region(obj1) ~= 1) return RT__Err(14,obj1);\
+         if (obj1 in Class || obj1 == Class or String or Routine or Object)\
+           return RT__Err(14,obj1);\
+         if (a<0 || a>=NUM_ATTR_BYTES*8) return RT__Err(19,obj1);\
+         if (obj1 hasnt a) return;",
+        "#ifdef INFIX;\
+         if (a ~= workflag && (obj1 has infix__watching || (debug_flag & 15)))\
+         print \"[Giving \",(name) obj1,\" @@126\", (DebugAttribute) a, \"]^\";\
+         #ifnot; #ifdef DEBUG;\
+         if (a ~= workflag && debug_flag & 15)\
+         print \"[Giving \",(name) obj1,\" @@126\", (DebugAttribute) a, \"]^\";\
+         #endif; #endif;\
+         give obj1 ~a; ]", "", "", "", ""
+    },
+    {
+        /*  RT__ChPS: Check at run-time that a proposed property set is legal.
+            Cause error and do nothing if not; otherwise make it.
+        */
+        "RT__ChPS",
+        "obj prop val res;\
+           if (obj==0 || Z__Region(obj)~=1\
+             || (obj == Class or String or Routine or Object) || obj in Class)\
+               return RT__Err(\"set\", obj, prop);\
+           res = WV__Pr(obj, prop, val);\
+           #ifdef INFIX;\
+           if (obj has infix__watching || (debug_flag & 15)) RT__TrPS(obj,prop,val);\
+           #ifnot; #ifdef DEBUG;\
+           if (debug_flag & 15) RT__TrPS(obj,prop,val);\
+           #endif; #endif;\
+           return res;\
+         ]", "", "", "", "", ""
+    },
+    {   /*  RT__ChPR:  check at run-time that a proposed property read is legal.
+                       cause error and return 0 if not; otherwise read it */
+        "RT__ChPR",
+        "obj prop val;\
+         if (obj==0 or Class or String or Routine or Object || Z_Region(obj)~=1 )\
+           {RT__Err(\"read\", obj, prop); obj=2;}\
+         val = RV__Pr(obj, prop);",
+        "return val; ]", "", "", "", ""
+    },
+    {   /*  RT__TrPS:  trace property settings  */
+
+        "RT__TrPS",
+        "obj prop val;\
+         print \"[Setting \",(name) obj,\".\",(property) prop,\
+         \" to \",val,\"]^\"; ]",
+        "", "", "", "", ""
+    },
+    {
+        /*  RT__ChLDB: Check at run-time that it's safe to load a byte
+            and return the byte.
+        */
+        "RT__ChLDB",
+        "base offset a b val;\
+           a=base+offset;\
+           @getmemsize b;\
+           if (Unsigned__Compare(a, b) >= 0)\
+             return RT__Err(24);\
+           @aloadb base offset val;\
+           return val;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  RT__ChLDW: Check at run-time that it's safe to load a word
+            and return the word
+        */
+        "RT__ChLDW",
+        "base offset a b val;\
+           a=base+WORDSIZE*offset;\
+           @getmemsize b;\
+           if (Unsigned__Compare(a, b) >= 0)\
+             return RT__Err(25);\
+           @aload base offset val;\
+           return val;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  RT__ChSTB: Check at run-time that it's safe to store a byte
+            and store it
+        */
+        "RT__ChSTB",
+        "base offset val a b;\
+           a=base+offset;\
+           @getmemsize b;\
+           if (Unsigned__Compare(a, b) >= 0) jump ChSTB_Fail;\
+           @aload 0 2 b;\
+           if (Unsigned__Compare(a, b) < 0) jump ChSTB_Fail;\
+           @astoreb base offset val;\
+           return;\
+         .ChSTB_Fail;\
+           return RT__Err(26);\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  RT__ChSTW: Check at run-time that it's safe to store a word
+            and store it
+        */
+        "RT__ChSTW",
+        "base offset val a b;\
+           a=base+WORDSIZE*offset;\
+           @getmemsize b;\
+           if (Unsigned__Compare(a, b) >= 0) jump ChSTW_Fail;\
+           @aload 0 2 b;\
+           if (Unsigned__Compare(a, b) < 0) jump ChSTW_Fail;\
+           @astore base offset val;\
+           return;\
+         .ChSTW_Fail;\
+           return RT__Err(27);\
+         ]", "", "", "", "", ""
+    },
+
+    {
+      /*  RT__ChPrintC: Check at run-time that it's safe to print (char)
+            and do so.
+      */
+        "RT__ChPrintC",
+        "c;\
+           if (c<10 || (c>10 && c<32) || (c>126 && c<160))\
+             return RT__Err(33,c);\
+           if (c>=0 && c<256)\
+             @streamchar c;\
+           else\
+             @streamunichar c;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  RT__ChPrintA: Check at run-time that it's safe to print (address)
+            and do so.
+        */
+        "RT__ChPrintA",
+        "addr endmem;\
+           if (addr<36)\
+             return RT__Err(34);\
+           @getmemsize endmem;\
+           if (Unsigned__Compare(addr, endmem) >= 0)\
+             return RT__Err(34);\
+           if (addr->0 ~= $60)\
+             return RT__Err(34);\
+           Print__Addr(addr);\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  Check at run-time that it's safe to print (string) and do so.
+        */
+        "RT__ChPrintS",
+        "str;\
+           if (Z__Region(str) ~= 3)\
+             return RT__Err(35);\
+           @streamstr str;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  Check at run-time that it's safe to print (object) and do so.
+        */
+        "RT__ChPrintO",
+        "obj;\
+           if (Z__Region(obj) ~= 1)\
+             return RT__Err(36);\
+           @aload obj GOBJFIELD_NAME sp; @streamstr sp;\
+         ]", "", "", "", "", ""
+    },
+    {
+        /*  OB__Move: Move an object within the object tree. This does no
+            more error checking than the Z-code \"move\" opcode.
+        */
+        "OB__Move",
+        "obj dest par chi sib;\
+           par = obj-->GOBJFIELD_PARENT;\
+           if (par ~= 0) {\
+             chi = par-->GOBJFIELD_CHILD;\
+             if (chi == obj) {\
+               par-->GOBJFIELD_CHILD = obj-->GOBJFIELD_SIBLING;\
+             }\
+             else {\
+               while (1) {\
+                 sib = chi-->GOBJFIELD_SIBLING;\
+                 if (sib == obj)\
+                   break;\
+                 chi = sib;\
+               }\
+               chi-->GOBJFIELD_SIBLING = obj-->GOBJFIELD_SIBLING;\
+             }\
+           }\
+           obj-->GOBJFIELD_SIBLING = dest-->GOBJFIELD_CHILD;\
+           obj-->GOBJFIELD_PARENT = dest;\
+           dest-->GOBJFIELD_CHILD = obj;\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  OB__Remove: Remove an object from the tree. This does no
+            more error checking than the Z-code \"remove\" opcode.
+        */
+        "OB__Remove",
+        "obj par chi sib;\
+           par = obj-->GOBJFIELD_PARENT;\
+           if (par == 0)\
+             rfalse;\
+           chi = par-->GOBJFIELD_CHILD;\
+           if (chi == obj) {\
+             par-->GOBJFIELD_CHILD = obj-->GOBJFIELD_SIBLING;\
+           }\
+           else {\
+             while (1) {\
+               sib = chi-->GOBJFIELD_SIBLING;\
+               if (sib == obj)\
+                 break;\
+               chi = sib;\
+             }\
+             chi-->GOBJFIELD_SIBLING = obj-->GOBJFIELD_SIBLING;\
+           }\
+           obj-->GOBJFIELD_SIBLING = 0;\
+           obj-->GOBJFIELD_PARENT = 0;\
+           rfalse;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  Print__Addr: Handle the print (address) statement. In Glulx,
+            this behaves differently than on the Z-machine; it can *only*
+            print dictionary words.
+        */
+        "Print__Addr",
+        "addr ix ch;\
+           if (addr->0 ~= $60) {\
+             print \"(\", addr, \": not dict word)\";\
+             return;\
+           }\
+           for (ix=1 : ix <= DICT_WORD_SIZE : ix++) {\
+             #ifndef DICT_IS_UNICODE;\
+             ch = addr->ix;\
+             #ifnot;\
+             ch = addr-->ix;\
+             #endif;\
+             if (ch == 0) return;\
+             print (char) ch;\
+           }\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  Glk__Wrap: This is a wrapper for the @glk opcode. It just passes
+            all its arguments into the Glk dispatcher, and returns the Glk
+            call result.
+        */
+        "Glk__Wrap",
+        "_vararg_count callid retval;\
+           @copy sp callid;\
+           _vararg_count = _vararg_count - 1;\
+           @glk callid _vararg_count retval;\
+           return retval;\
+         ]", "", "", "", "", ""
+    },
+
+    {
+        /*  Dynam__String: Set dynamic string (printing variable) num to the
+            given val, which can be any string or function.
+        */
+        "Dynam__String",
+        "num val;\
+           if (num < 0 || num >= #dynam_string_table-->0)\
+             return RT__Err(40, num);\
+           (#dynam_string_table)-->(num+1) = val;\
+         ]", "", "", "", "", ""
+    }
+
+};
+
 
 static void mark_as_needed_z(int code)
 {
@@ -2156,15 +3190,22 @@ static void mark_as_needed_g(int code)
 
 extern assembly_operand veneer_routine(int code)
 {   assembly_operand AO;
-    if (!glulx_mode) { 
+    switch (target_machine) {
+        case TARGET_ZCODE: 
         INITAOTV(&AO, LONG_CONSTANT_OT, code);
         AO.marker = VROUTINE_MV;
         mark_as_needed_z(code);
-    }
-    else {
+	break;
+
+	case TARGET_GLULX:
         INITAOTV(&AO, CONSTANT_OT, code);
         AO.marker = VROUTINE_MV;
         mark_as_needed_g(code);
+        break;
+
+	case TARGET_WASM:
+	WABORT;
+
     }
     return(AO);
 }
@@ -2174,11 +3215,15 @@ extern char *veneer_routine_name(int code)
     if (code < 0 || code >= VENEER_ROUTINES) {
         return "???";
     }
-    if (!glulx_mode) {
+    switch (target_machine) {
+        case TARGET_ZCODE:
         return VRs_z[code].name;
-    }
-    else {
+
+	case TARGET_GLULX:
         return VRs_g[code].name;
+
+	case TARGET_WASM:
+	return VRs_w[code].name;
     }
 }
 
@@ -2198,7 +3243,8 @@ static void compile_symbol_table_routine(void)
     sflags[j] |= SYSTEM_SFLAG + USED_SFLAG;
     if (trace_fns_setting==3) sflags[j] |= STAR_SFLAG;
 
-  if (!glulx_mode) {
+  switch (target_machine) {
+    case TARGET_ZCODE:
 
     if (define_INFIX_switch == FALSE)
     {   assemblez_0(rfalse_zc);
@@ -2307,9 +3353,9 @@ static void compile_symbol_table_routine(void)
     variable_usage[2] = TRUE;
     assemble_routine_end(FALSE, null_debug_locations);
     veneer_mode = FALSE;
-  }
-  else {
+    break;
 
+    case TARGET_GLULX:
     if (define_INFIX_switch == FALSE)
     {   assembleg_1(return_gc, zero_operand);
         variable_usage[1] = TRUE;
@@ -2320,6 +3366,10 @@ static void compile_symbol_table_routine(void)
     }
 
     error("*** Infix symbol-table routine is not yet implemented. ***");
+    break;
+
+    case TARGET_WASM:
+    WABORT;
   }
 }
 
@@ -2329,7 +3379,7 @@ extern void compile_veneer(void)
 
     if (module_switch) return;
 
-    VRs = (!glulx_mode) ? VRs_z : VRs_g;
+    VRs = (target_machine == TARGET_ZCODE) ? VRs_z : (target_machine == TARGET_GLULX) ? VRs_g : VRs_w;
 
     /*  Called at the end of the pass to insert as much of the veneer as is
         needed and not elsewhere compiled.  */

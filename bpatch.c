@@ -332,6 +332,183 @@ symbol");
     return(value);
 }
 
+static int32 backpatch_value_w(int32 value)
+{   /*  Corrects the quantity "value" according to backpatch_marker  */
+    int32 valaddr;
+
+    if (asm_trace_level >= 4)
+        printf("BP %s applied to %04x giving ",
+            describe_mv(backpatch_marker), value);
+
+    switch(backpatch_marker)
+    {
+        case STRING_MV:
+		WABORT;
+            if (value <= 0 || value > no_strings)
+              compiler_error("Illegal string marker.");
+            value = strings_offset + compressed_offsets[value-1]; break;
+        case IROUTINE_MV:
+		WABORT;
+            if (OMIT_UNUSED_ROUTINES)
+                value = df_stripped_address_for_address(value);
+            value += code_offset;
+            break;
+        case ARRAY_MV:
+		WABORT;
+            value += arrays_offset; break;
+        case STATIC_ARRAY_MV:
+		WABORT;
+            value += static_arrays_offset; break;
+        case VARIABLE_MV:
+		WABORT;
+            value = variables_offset + (4*value); break;
+        case OBJECT_MV:
+		WABORT;
+            value = object_tree_offset + (OBJECT_BYTE_LENGTH*(value-1)); 
+            break;
+        case VROUTINE_MV:
+		WABORT;
+            if ((value<0) || (value>=VENEER_ROUTINES))
+            {   if (no_link_errors > 0) break;
+                if (compiler_error
+                    ("Backpatch veneer routine number out of range"))
+                {   printf("Illegal BP veneer routine number: %d\n", value);
+                    backpatch_error_flag = TRUE;
+                }
+                value = 0;
+                break;
+            }
+            value = veneer_routine_address[value];
+            if (OMIT_UNUSED_ROUTINES)
+                value = df_stripped_address_for_address(value);
+            value += code_offset;
+            break;
+        case NO_OBJS_MV:
+		WABORT;
+            value = no_objects; break;
+        case INCON_MV:
+		WABORT;
+            if ((value<0) || (value>=NO_SYSTEM_CONSTANTS))
+            {   if (no_link_errors > 0) break;
+                if (compiler_error
+                    ("Backpatch system constant number out of range"))
+                {   printf("Illegal BP system constant number: %d\n", value);
+                    backpatch_error_flag = TRUE;
+                }
+                value = 0;
+                break;
+            }
+            value = value_of_system_constant(value); break;
+        case DWORD_MV:
+		WABORT;
+            value = dictionary_offset + 4 
+              + final_dict_order[value]*DICT_ENTRY_BYTE_LENGTH;
+            break;
+        case ACTION_MV:
+		WABORT;
+            break;
+        case INHERIT_MV:
+		WABORT;
+            valaddr = (prop_values_offset - Write_RAM_At) + value;
+            value = ReadInt32(zmachine_paged_memory + valaddr);
+            break;
+        case INHERIT_INDIV_MV:
+            error("*** No individual property storage in Glulx ***");
+            break;
+        case INDIVPT_MV:
+		WABORT;
+            value += individuals_offset;
+            break;
+        case MAIN_MV:
+            value = symbol_index("Main", -1);
+            if (stypes[value] != ROUTINE_T)
+                error("No 'Main' routine has been defined");
+            sflags[value] |= USED_SFLAG;
+            value = svals[value];
+            if (OMIT_UNUSED_ROUTINES)
+                WSTUB; //value = df_stripped_address_for_address(value);
+            break;
+        case SYMBOL_MV:
+            if ((value<0) || (value>=no_symbols))
+            {   if (no_link_errors > 0) break;
+                if (compiler_error("Backpatch symbol number out of range"))
+                {   printf("Illegal BP symbol number: %d\n", value);
+                    backpatch_error_flag = TRUE;
+                }
+                value = 0;
+                break;
+            }
+            if (sflags[value] & UNKNOWN_SFLAG)
+            {   if (!(sflags[value] & UERROR_SFLAG))
+                {   sflags[value] |= UERROR_SFLAG;
+                    error_named_at("No such constant as",
+                        (char *) symbs[value], slines[value]);
+                }
+            }
+            else
+            if (sflags[value] & CHANGE_SFLAG)
+            {   sflags[value] &= (~(CHANGE_SFLAG));
+                backpatch_marker = smarks[value];
+                if ((backpatch_marker < 0)
+                    || (backpatch_marker > LARGEST_BPATCH_MV))
+                {
+                    if (no_link_errors == 0)
+                    {   compiler_error_named(
+                        "Illegal backpatch marker attached to symbol",
+                        (char *) symbs[value]);
+                        backpatch_error_flag = TRUE;
+                    }
+                }
+                else
+                    svals[value] = backpatch_value_w(svals[value]);
+            }
+
+            sflags[value] |= USED_SFLAG;
+            {   int t = stypes[value];
+                value = svals[value];
+                switch(t)
+                {
+                    case ROUTINE_T:
+                        if (OMIT_UNUSED_ROUTINES)
+                            WSTUB;//value = df_stripped_address_for_address(value);
+                        break;
+                    case ARRAY_T: WABORT; value += arrays_offset; break;
+                    case STATIC_ARRAY_T: WABORT; value += static_arrays_offset; break;
+                    case OBJECT_T:
+                    case CLASS_T:
+                      WABORT; value = object_tree_offset + 
+                        (OBJECT_BYTE_LENGTH*(value-1)); 
+                      break;
+                    case ATTRIBUTE_T:
+                      /* value is unchanged */
+                      WABORT; break;
+                    case CONSTANT_T:
+                    case INDIVIDUAL_PROPERTY_T:
+                    case PROPERTY_T:
+                      /* value is unchanged */
+                      WABORT; break;
+                    default:
+                      error("*** Illegal backpatch marker in forward-declared \
+symbol");
+                      break;
+                }
+            }
+            break;
+        default:
+            if (no_link_errors > 0) break;
+            if (compiler_error("Illegal backpatch marker"))
+            {   printf("Illegal backpatch marker %d value %04x\n",
+                    backpatch_marker, value);
+                backpatch_error_flag = TRUE;
+            }
+            break;
+    }
+
+    if (asm_trace_level >= 4) printf(" %04x\n", value);
+
+    return(value);
+}
+
 extern int32 backpatch_value(int32 value)
 {
   switch (target_machine) {
@@ -342,7 +519,7 @@ extern int32 backpatch_value(int32 value)
     return backpatch_value_g(value);
 
     case TARGET_WASM:
-    WABORT;
+    return backpatch_value_w(value);
   }
 }
 

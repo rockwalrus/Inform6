@@ -2037,7 +2037,7 @@ extern int32 assemble_routine_header(int no_locals,
       break;
 
       case TARGET_WASM:
-      rv = zmachine_pc;
+      rv = no_routines - 1; /* WebAssembly uses indices instead of addresses */
       byteout(0xee, 0); /* size */
       byteout(0, 0); /* non-parameter locals */
       break;
@@ -2770,7 +2770,7 @@ static void transfer_routine_w(void)
             zcode_markers[i]);
           write_byte_to_memory_block(&zcode_backpatch_table,
             zcode_backpatch_size++,
-            4);
+            1);
           write_byte_to_memory_block(&zcode_backpatch_table,
             zcode_backpatch_size++, ((new_pc >> 24) & 0xFF));
           write_byte_to_memory_block(&zcode_backpatch_table,

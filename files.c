@@ -1507,7 +1507,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
           read_byte_from_memory_block(&zcode_backpatch_table, i);
         data_len =
           read_byte_from_memory_block(&zcode_backpatch_table, i+1);
-
+printf("marker %d\n", backpatch_marker);
         /* All code up until the next backpatch marker gets flushed out
            as-is. (Unless we're in a stripped-out function.) */
         while (j<offset) {
@@ -1547,7 +1547,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
           j += 4;
           if (!use_function)
               break;
-          //v = backpatch_value(v);
+          v = backpatch_value(v);
           sf_put((v >> 24) & 0xFF);
           sf_put((v >> 16) & 0xFF);
           sf_put((v >> 8) & 0xFF);
@@ -1563,7 +1563,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
           j += 2;
           if (!use_function)
               break;
-          //v = backpatch_value(v);
+          v = backpatch_value(v);
           if (v >= 0x10000) {
             printf("*** backpatch value does not fit ***\n");
             backpatch_error_flag = TRUE;
@@ -1579,7 +1579,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
           j += 1;
           if (!use_function)
               break;
-          //v = backpatch_value(v);
+          v = backpatch_value(v);
           if (v >= 0x100) {
             printf("*** backpatch value does not fit ***\n");
             backpatch_error_flag = TRUE;

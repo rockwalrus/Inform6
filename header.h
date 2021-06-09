@@ -658,7 +658,8 @@ static int32 unique_task_id(void)
    longer needed. */
 #define ASSERT_ZCODE() (0)
 #define ASSERT_GLULX() (0)
-#define WABORT printf("WABORT %s", __func__); exit(1);
+#define WABORT printf("WABORT %s (%s:%d)", __func__, __FILE__, __LINE__); exit(1);
+#define WSTUB  printf("WSTUB %s (%s:%d)", __func__, __FILE__, __LINE__);
 
 #define ReadInt32(ptr)                               \
   (   (((int32)(((uchar *)(ptr))[0])) << 24)         \
@@ -924,6 +925,7 @@ typedef struct operator_s
                                             or an array entry)  */
     int opcode_number_z;                /*  Translation number (see below)  */
     int opcode_number_g;                /*  Translation number (see below)  */
+    int opcode_number_w;                /*  Translation number (see below)  */
     int side_effect;                    /*  TRUE if evaluating the operator
                                             has potential side-effects in
                                             terms of changing the Z-machine  */
@@ -976,6 +978,21 @@ typedef struct operator_s
 #define DEREFERENCE_OT     10   /* Value at this address */
 #define GLOBALVAR_OT       11   /* Global variable */
 #define LOCALVAR_OT        12   /* Local variable or sp */
+
+
+/* For WebAssembly... */
+
+/* #define OMITTED_OT?      3 */ /* Same as above */
+/* #define EXPRESSION_OT   4 */ /* Same as above */
+#define CONSTANT_OT        5    /* Four-byte constant */
+/*#define SYSFUN_OT?          9 */   /* System function value */
+/*#define DEREFERENCE_OT?     10 */  /* Value at this address */
+/*#define GLOBALVAR_OT       11 */  /* Global variable */
+/*#define LOCALVAR_OT        12 */  /* Local variable or sp */
+#define STACK_OT          13 /* Top of the stack */
+
+
+
 
 /* ------------------------------------------------------------------------- */
 /*   Internal numbers representing assemble-able Z-opcodes                   */
@@ -1228,6 +1245,31 @@ typedef struct operator_s
 
 #define pull_gm   0
 #define push_gm   1
+
+/* ------------------------------------------------------------------------- */
+/*   Internal numbers representing assemble-able WebAssembly opcodes               */
+/* ------------------------------------------------------------------------- */
+
+#define return_wc    15
+#define call_wc      16
+#define local_get_wc 17 
+#define i32_const_wc 18
+#define i32_eqz_wc 0
+#define i32_nez_wc 0
+#define i32_eq_wc 0
+#define i32_ne_wc 0
+#define i32_gt_s_wc 0
+#define i32_ge_s_wc 0
+#define i32_le_s_wc 0
+#define i32_lt_s_wc 0
+#define i32_add_wc 19
+#define i32_sub_wc 0
+#define i32_mul_wc 0
+#define i32_div_s_wc 0
+#define i32_rem_s_wc 0
+#define i32_and_wc 0
+#define i32_or_wc 0
+#define i32_not_wc 0
 
 
 #define SYMBOL_TT    0                      /* value = index in symbol table */
@@ -2220,6 +2262,13 @@ extern void assembleg_inc(assembly_operand o1);
 extern void assembleg_dec(assembly_operand o1);
 extern void assembleg_store(assembly_operand o1, assembly_operand o2);
 extern void assembleg_jump(int n);
+
+extern void assemblew_0(int internal_number);
+extern void assemblew_1(int internal_number, assembly_operand o1);
+extern void assemblew_3(int internal_number, assembly_operand o1,
+  assembly_operand o2, assembly_operand o3);
+extern void assemblew_load(assembly_operand o1);
+extern void assemblew_store(assembly_operand o1);
 
 extern void parse_assembly(void);
 

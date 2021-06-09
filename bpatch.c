@@ -411,7 +411,7 @@ extern void backpatch_zmachine(int mv, int zmachine_area, int32 offset)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    break;
   }
 }
 

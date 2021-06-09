@@ -1277,6 +1277,616 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 #endif
 }
 
+static void output_file_w(void)
+{   FILE *fin=NULL; char new_name[PATHLEN];
+    int32 size, i, j, offset;
+    int32 VersionNum;
+    uint32 code_length, size_before_code, next_cons_check;
+    int use_function;
+    int first_byte_of_triple, second_byte_of_triple, third_byte_of_triple;
+
+
+    /* At this point, construct_storyfile() has just been called. */
+
+    translate_out_filename(new_name, Code_Name);
+
+    sf_handle = fopen(new_name,"wb+");
+    if (sf_handle == NULL)
+        fatalerror_named("Couldn't open output file", new_name);
+
+
+#if 0
+    checksum_long = 0;
+    checksum_count = 0;
+
+    /* Determine the version number. */
+
+    VersionNum = 0x00020000;
+
+    /* Increase for various features the game may have used. */
+    if (no_unicode_chars != 0 || (uses_unicode_features)) {
+      VersionNum = 0x00030000;
+    }
+    if (uses_memheap_features) {
+      VersionNum = 0x00030100;
+    }
+    if (uses_acceleration_features) {
+      VersionNum = 0x00030101;
+    }
+    if (uses_float_features) {
+      VersionNum = 0x00030102;
+    }
+
+    /* And check if the user has requested a specific version. */
+    if (requested_glulx_version) {
+      if (requested_glulx_version < VersionNum) {
+        static char error_message_buff[256];
+        sprintf(error_message_buff, "Version 0x%08lx requested, but \
+game features require version 0x%08lx", (long)requested_glulx_version, (long)VersionNum);
+        warning(error_message_buff);
+      }
+      else {
+        VersionNum = requested_glulx_version;
+      }
+    }
+#endif
+
+    /*  (1)  Output the header. We use sf_put here, instead of fputc,
+        because the header is included in the checksum. */
+
+    /* Magic number */
+    sf_put(0);
+    sf_put('a');
+    sf_put('s');
+    sf_put('m');
+    /* Version number. */
+    sf_put(1);
+    sf_put(0);
+    sf_put(0);
+    sf_put(0);
+
+    /* Type section */
+    sf_put(0x01);
+    sf_put(0x0b);
+
+    sf_put(0x02);
+
+    sf_put(0x60);
+    sf_put(0x00);
+    sf_put(0x01);
+    sf_put(0x7f);
+
+    sf_put(0x60);
+    sf_put(0x02);
+    sf_put(0x7f);
+    sf_put(0x7f);
+    sf_put(0x01);
+    sf_put(0x7f);
+
+
+    /* Function section */
+    sf_put(0x03);
+    sf_put(0x05);
+    sf_put(0x04);
+    sf_put(0x00);
+    sf_put(0x00);
+    sf_put(0x01);
+    sf_put(0x01);
+
+    /* Code section */
+    sf_put(0x0a);
+    sf_put(zmachine_pc+1);
+    sf_put(0x04);
+
+    /* RAMSTART */
+#if 0
+    sf_put((Write_RAM_At >> 24));
+    sf_put((Write_RAM_At >> 16));
+    sf_put((Write_RAM_At >> 8));
+    sf_put((Write_RAM_At));
+    /* EXTSTART, or game file size */
+    sf_put((Out_Size >> 24));
+    sf_put((Out_Size >> 16));
+    sf_put((Out_Size >> 8));
+    sf_put((Out_Size));
+    /* ENDMEM, which the game file size plus MEMORY_MAP_EXTENSION */
+    i = Out_Size + MEMORY_MAP_EXTENSION;
+    sf_put((i >> 24));
+    sf_put((i >> 16));
+    sf_put((i >> 8));
+    sf_put((i));
+    /* STACKSIZE */
+    sf_put((MAX_STACK_SIZE >> 24));
+    sf_put((MAX_STACK_SIZE >> 16));
+    sf_put((MAX_STACK_SIZE >> 8));
+    sf_put((MAX_STACK_SIZE));
+    /* Initial function to call. Inform sets things up so that this
+       is the start of the executable-code area. */
+    sf_put((Write_Code_At >> 24));
+    sf_put((Write_Code_At >> 16));
+    sf_put((Write_Code_At >> 8));
+    sf_put((Write_Code_At));
+    /* String-encoding table. */
+    sf_put((Write_Strings_At >> 24));
+    sf_put((Write_Strings_At >> 16));
+    sf_put((Write_Strings_At >> 8));
+    sf_put((Write_Strings_At));
+    /* Checksum -- zero for the moment. */
+    sf_put(0x00);
+    sf_put(0x00);
+    sf_put(0x00);
+    sf_put(0x00);
+    
+    size = GLULX_HEADER_SIZE;
+
+    /*  (1a) Output the eight-byte memory layout identifier. */
+
+    sf_put('I'); sf_put('n'); sf_put('f'); sf_put('o');
+    sf_put(0); sf_put(1); sf_put(0); sf_put(0);
+
+    /*  (1b) Output the rest of the Inform-specific data. */
+
+    /* Inform version number */
+    sf_put('0' + ((RELEASE_NUMBER/100)%10));
+    sf_put('.');
+    sf_put('0' + ((RELEASE_NUMBER/10)%10));
+    sf_put('0' + RELEASE_NUMBER%10);
+    /* Glulx back-end version number */
+    sf_put('0' + ((GLULX_RELEASE_NUMBER/100)%10));
+    sf_put('.');
+    sf_put('0' + ((GLULX_RELEASE_NUMBER/10)%10));
+    sf_put('0' + GLULX_RELEASE_NUMBER%10);
+    /* Game release number */
+    sf_put((release_number>>8) & 0xFF);
+    sf_put(release_number & 0xFF);
+    /* Game serial number */
+    {
+      char serialnum[8];
+      write_serial_number(serialnum);
+      for (i=0; i<6; i++)
+        sf_put(serialnum[i]);
+    }
+    size += GLULX_STATIC_ROM_SIZE;
+#endif
+
+    /*  (2)  Output the compiled code area. */
+
+    if (temporary_files_switch)
+    {   fclose(Temp2_fp);
+        Temp2_fp = NULL;
+        fin=fopen(Temp2_Name,"rb");
+        if (fin==NULL)
+            fatalerror("I/O failure: couldn't reopen temporary file 2");
+    }
+
+    if (!OMIT_UNUSED_ROUTINES) {
+        /* This is the old-fashioned case, which is easy. All of zcode_area
+           (zmachine_pc bytes) will be output. next_cons_check will be
+           ignored, because j will never reach it. */
+        code_length = zmachine_pc;
+        use_function = TRUE;
+        next_cons_check = code_length+1;
+    }
+    else {
+        /* With dead function stripping, life is more complicated. 
+           j will run from 0 to zmachine_pc, but only code_length of
+           those should be output. next_cons_check is the location of
+           the next function break; that's where we check whether
+           we're in a live function or a dead one.
+           (This logic is simplified by the assumption that a backpatch
+           marker will never straddle a function break.) */
+        if (zmachine_pc != df_total_size_before_stripping)
+            compiler_error("Code size does not match (zmachine_pc and df_total_size).");
+        code_length = df_total_size_after_stripping;
+        use_function = TRUE;
+        next_cons_check = 0;
+        df_prepare_function_iterate();
+    }
+    size_before_code = size;
+
+    j=0;
+    if (!module_switch)
+      for (i=0; i<zcode_backpatch_size; i=i+6) {
+        int data_len;
+        int32 v;
+        offset = 
+          (read_byte_from_memory_block(&zcode_backpatch_table, i+2) << 24)
+          | (read_byte_from_memory_block(&zcode_backpatch_table, i+3) << 16)
+          | (read_byte_from_memory_block(&zcode_backpatch_table, i+4) << 8)
+          | (read_byte_from_memory_block(&zcode_backpatch_table, i+5));
+        backpatch_error_flag = FALSE;
+        backpatch_marker =
+          read_byte_from_memory_block(&zcode_backpatch_table, i);
+        data_len =
+          read_byte_from_memory_block(&zcode_backpatch_table, i+1);
+
+        /* All code up until the next backpatch marker gets flushed out
+           as-is. (Unless we're in a stripped-out function.) */
+        while (j<offset) {
+            if (!use_function) {
+                while (j<offset && j<next_cons_check) {
+                    /* get dummy value */
+                    ((temporary_files_switch)?fgetc(fin):
+                        read_byte_from_memory_block(&zcode_area, j));
+                    j++;
+                }
+            }
+            else {
+                while (j<offset && j<next_cons_check) {
+                    size++;
+                    sf_put((temporary_files_switch)?fgetc(fin):
+                        read_byte_from_memory_block(&zcode_area, j));
+                    j++;
+                }
+            }
+            if (j == next_cons_check)
+                next_cons_check = df_next_function_iterate(&use_function);
+        }
+
+        /* Write out the converted value of the backpatch marker.
+           (Unless we're in a stripped-out function.) */
+        switch (data_len) {
+
+        case 4:
+          v = ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j));
+          v = (v << 8) | ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j+1));
+          v = (v << 8) | ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j+2));
+          v = (v << 8) | ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j+3));
+          j += 4;
+          if (!use_function)
+              break;
+          //v = backpatch_value(v);
+          sf_put((v >> 24) & 0xFF);
+          sf_put((v >> 16) & 0xFF);
+          sf_put((v >> 8) & 0xFF);
+          sf_put((v) & 0xFF);
+          size += 4;
+          break;
+
+        case 2:
+          v = ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j));
+          v = (v << 8) | ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j+1));
+          j += 2;
+          if (!use_function)
+              break;
+          //v = backpatch_value(v);
+          if (v >= 0x10000) {
+            printf("*** backpatch value does not fit ***\n");
+            backpatch_error_flag = TRUE;
+          }
+          sf_put((v >> 8) & 0xFF);
+          sf_put((v) & 0xFF);
+          size += 2;
+          break;
+
+        case 1:
+          v = ((temporary_files_switch)?fgetc(fin):
+            read_byte_from_memory_block(&zcode_area, j));
+          j += 1;
+          if (!use_function)
+              break;
+          //v = backpatch_value(v);
+          if (v >= 0x100) {
+            printf("*** backpatch value does not fit ***\n");
+            backpatch_error_flag = TRUE;
+          }
+          sf_put((v) & 0xFF);
+          size += 1;
+          break;
+
+        default:
+          printf("*** unknown backpatch data len = %d ***\n",
+            data_len);
+          backpatch_error_flag = TRUE;
+        }
+
+        if (j > next_cons_check)
+          compiler_error("Backpatch appears to straddle function break");
+
+        if (backpatch_error_flag) {
+          printf("*** %d bytes  zcode offset=%08lx  backpatch offset=%08lx ***\n",
+            data_len, (long int) j, (long int) i);
+        }
+    }
+
+    /* Flush out the last bit of zcode_area, after the last backpatch
+       marker. */
+    offset = zmachine_pc;
+    while (j<offset) {
+        if (!use_function) {
+            while (j<offset && j<next_cons_check) {
+                /* get dummy value */
+                ((temporary_files_switch)?fgetc(fin):
+                    read_byte_from_memory_block(&zcode_area, j));
+                j++;
+            }
+        }
+        else {
+            while (j<offset && j<next_cons_check) {
+                size++;
+                sf_put((temporary_files_switch)?fgetc(fin):
+                    read_byte_from_memory_block(&zcode_area, j));
+                j++;
+            }
+        }
+        if (j == next_cons_check)
+            next_cons_check = df_next_function_iterate(&use_function);
+    }
+
+    if (temporary_files_switch)
+    {   if (ferror(fin))
+            fatalerror("I/O failure: couldn't read from temporary file 2");
+        fclose(fin);
+        fin = NULL;
+    }
+
+    if (size_before_code + code_length != size)
+        compiler_error("Code output length did not match");
+
+#if 0
+    /*  (4)  Output the static strings area.                                 */
+
+    if (temporary_files_switch) {
+      fseek(Temp1_fp, 0, SEEK_SET);
+    }
+    {
+      int32 ix, lx;
+      int ch, jx, curbyte, bx;
+      int depth, checkcount;
+      huffbitlist_t *bits;
+      int32 origsize;
+
+      origsize = size;
+
+      if (compression_switch) {
+
+        /* The 12-byte table header. */
+        lx = compression_table_size;
+        sf_put((lx >> 24) & 0xFF);
+        sf_put((lx >> 16) & 0xFF);
+        sf_put((lx >> 8) & 0xFF);
+        sf_put((lx) & 0xFF);
+        size += 4;
+        sf_put((no_huff_entities >> 24) & 0xFF);
+        sf_put((no_huff_entities >> 16) & 0xFF);
+        sf_put((no_huff_entities >> 8) & 0xFF);
+        sf_put((no_huff_entities) & 0xFF);
+        size += 4;
+        lx = Write_Strings_At + 12;
+        sf_put((lx >> 24) & 0xFF);
+        sf_put((lx >> 16) & 0xFF);
+        sf_put((lx >> 8) & 0xFF);
+        sf_put((lx) & 0xFF);
+        size += 4;
+
+        checkcount = 0;
+        output_compression(huff_entity_root, &size, &checkcount);
+        if (checkcount != no_huff_entities)
+          compiler_error("Compression table count mismatch.");
+      }
+
+      if (size - origsize != compression_table_size)
+        compiler_error("Compression table size mismatch.");
+
+      origsize = size;
+
+      for (lx=0, ix=0; lx<no_strings; lx++) {
+        int escapelen=0, escapetype=0;
+        int done=FALSE;
+        int32 escapeval=0;
+        if (compression_switch)
+          sf_put(0xE1); /* type byte -- compressed string */
+        else
+          sf_put(0xE0); /* type byte -- non-compressed string */
+        size++;
+        jx = 0; 
+        curbyte = 0;
+        while (!done) {
+          if (temporary_files_switch)
+            ch = fgetc(Temp1_fp);
+          else
+            ch = read_byte_from_memory_block(&static_strings_area, ix);
+          ix++;
+          if (ix > static_strings_extent || ch < 0)
+            compiler_error("Read too much not-yet-compressed text.");
+
+          if (escapelen == -1) {
+            escapelen = 0;
+            if (ch == '@') {
+              ch = '@';
+            }
+            else if (ch == '0') {
+              ch = '\0';
+            }
+            else if (ch == 'A' || ch == 'D' || ch == 'U') {
+              escapelen = 4;
+              escapetype = ch;
+              escapeval = 0;
+              continue;
+            }
+            else {
+              compiler_error("Strange @ escape in processed text.");
+            }
+          }
+          else if (escapelen) {
+            escapeval = (escapeval << 4) | ((ch-'A') & 0x0F);
+            escapelen--;
+            if (escapelen == 0) {
+              if (escapetype == 'A') {
+                ch = huff_abbrev_start+escapeval;
+              }
+              else if (escapetype == 'D') {
+                ch = huff_dynam_start+escapeval;
+              }
+              else if (escapetype == 'U') {
+                ch = huff_unicode_start+escapeval;
+              }
+              else {
+                compiler_error("Strange @ escape in processed text.");
+              }
+            }
+            else 
+              continue;
+          }
+          else {
+            if (ch == '@') {
+              escapelen = -1;
+              continue;
+            }
+            if (ch == 0) {
+              ch = 256;
+              done = TRUE;
+            }
+          }
+
+          if (compression_switch) {
+            bits = &(huff_entities[ch].bits);
+            depth = huff_entities[ch].depth;
+            for (bx=0; bx<depth; bx++) {
+              if (bits->b[bx / 8] & (1 << (bx % 8)))
+                curbyte |= (1 << jx);
+              jx++;
+              if (jx == 8) {
+                sf_put(curbyte);
+                size++;
+                curbyte = 0;
+                jx = 0;
+              }
+            }
+          }
+          else {
+            if (ch >= huff_dynam_start) {
+              sf_put(' '); sf_put(' '); sf_put(' ');
+              size += 3;
+            }
+            else if (ch >= huff_abbrev_start) {
+              /* nothing */
+            }
+            else {
+              /* 256, the string terminator, comes out as zero */
+              sf_put(ch & 0xFF);
+              size++;
+            }
+          }
+        }
+        if (compression_switch && jx) {
+          sf_put(curbyte);
+          size++;
+        }
+      }
+      
+      if (size - origsize != compression_string_size)
+        compiler_error("Compression string size mismatch.");
+
+    }
+    
+    /*  (5)  Output static arrays (if any). */
+    {
+        /* We have to backpatch entries mentioned in staticarray_backpatch_table. */
+        int32 size_before_arrays = size;
+        int32 val, ix, jx;
+        for (ix=0, jx=0; ix<staticarray_backpatch_size; ix += 5) {
+            backpatch_error_flag = FALSE;
+            backpatch_marker = read_byte_from_memory_block(&staticarray_backpatch_table, ix);
+            /* datalen is always 4 for array backpatching */
+            offset = 
+                (read_byte_from_memory_block(&staticarray_backpatch_table, ix+1) << 24)
+                | (read_byte_from_memory_block(&staticarray_backpatch_table, ix+2) << 16)
+                | (read_byte_from_memory_block(&staticarray_backpatch_table, ix+3) << 8)
+                | (read_byte_from_memory_block(&staticarray_backpatch_table, ix+4));
+            while (jx<offset) {
+                sf_put(static_array_area[jx]);
+                size++;
+                jx++;
+            }
+
+            /* Write out the converted value of the backpatch marker. */
+            val = static_array_area[jx++];
+            val = (val << 8) | static_array_area[jx++];
+            val = (val << 8) | static_array_area[jx++];
+            val = (val << 8) | static_array_area[jx++];
+            val = backpatch_value(val);
+            sf_put((val >> 24) & 0xFF);
+            sf_put((val >> 16) & 0xFF);
+            sf_put((val >> 8) & 0xFF);
+            sf_put((val) & 0xFF);
+            size += 4;
+        }
+
+        /* Flush out the last bit of static_array_area, after the last backpatch marker. */
+        offset = static_array_area_size;
+        while (jx<offset) {
+            sf_put(static_array_area[jx]);
+            size++;
+            jx++;
+        }
+
+        if (size_before_arrays + static_array_area_size != size)
+            compiler_error("Static array output length did not match");
+    }
+
+    /*  (5.5)  Output any null bytes (required to reach a GPAGESIZE address)
+             before RAMSTART. */
+
+    while (size % GPAGESIZE) { sf_put(0); size++; }
+
+    /*  (6)  Output RAM. */
+
+    for (i=0; i<RAM_Size; i++)
+    {   sf_put(zmachine_paged_memory[i]); size++;
+    }
+
+    if (ferror(sf_handle))
+        fatalerror("I/O failure: couldn't write to story file");
+
+    fseek(sf_handle, 32, SEEK_SET);
+    fputc((checksum_long >> 24) & 0xFF, sf_handle);
+    fputc((checksum_long >> 16) & 0xFF, sf_handle);
+    fputc((checksum_long >> 8) & 0xFF, sf_handle);
+    fputc((checksum_long) & 0xFF, sf_handle);
+
+    if (ferror(sf_handle))
+      fatalerror("I/O failure: couldn't backtrack on story file for checksum");
+
+    /*  Write a copy of the first 64 bytes into the debugging information file
+        (mainly so that it can be used to identify which story file matches with
+        which debugging info file).  */
+
+    if (debugfile_switch)
+    {   fseek(sf_handle, 0L, SEEK_SET);
+        debug_file_printf("<story-file-prefix>");
+        for (i = 0; i < 63; i += 3)
+        {   first_byte_of_triple = fgetc(sf_handle);
+            second_byte_of_triple = fgetc(sf_handle);
+            third_byte_of_triple = fgetc(sf_handle);
+            debug_file_print_base_64_triple
+                (first_byte_of_triple,
+                 second_byte_of_triple,
+                 third_byte_of_triple);
+        }
+        debug_file_print_base_64_single(fgetc(sf_handle));
+        debug_file_printf("</story-file-prefix>");
+    }
+
+#endif
+
+    fclose(sf_handle);
+
+#ifdef ARCHIMEDES
+    {   char settype_command[PATHLEN];
+        sprintf(settype_command, "settype %s %s",
+            new_name, riscos_file_type());
+        system(settype_command);
+    }
+#endif
+}
+
 extern void output_file(void)
 {
   switch (target_machine) {
@@ -1289,7 +1899,8 @@ extern void output_file(void)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    output_file_w();
+    break;
   }
 }
 

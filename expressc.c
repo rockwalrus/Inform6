@@ -54,7 +54,18 @@ static void make_operands(void)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    INITAOT(&stack_pointer, STACK_OT);
+    INITAOTV(&temp_var1, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+0);
+    INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
+    INITAOTV(&temp_var3, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
+    INITAOTV(&temp_var4, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+3);
+    INITAOTV(&zero_operand, CONSTANT_OT, 0);
+    INITAOTV(&one_operand, CONSTANT_OT, 1);
+    INITAOTV(&two_operand, CONSTANT_OT, 2);
+    INITAOTV(&three_operand, CONSTANT_OT, 3);
+    INITAOTV(&four_operand, CONSTANT_OT, 4);
+    INITAOTV(&valueless_operand, OMITTED_OT, 0);
+    break;
   }
 }
 
@@ -101,24 +112,24 @@ operator operators[NUM_OPERATORS] =
                          /*  Level 0:  ,             */
                          /* ------------------------ */
 
-  { 0, SEP_TT, COMMA_SEP,       IN_U, L_A, 0, -1, -1, 0, 0, "comma" },
+  { 0, SEP_TT, COMMA_SEP,       IN_U, L_A, 0, -1, -1, -1, 0, 0, "comma" },
 
                          /* ------------------------ */
                          /*  Level 1:  =             */
                          /* ------------------------ */
 
-  { 1, SEP_TT, SETEQUALS_SEP,   IN_U, R_A, 1, -1, -1, 1, 0,
+  { 1, SEP_TT, SETEQUALS_SEP,   IN_U, R_A, 1, -1, -1, -1, 1, 0,
       "assignment operator '='" },
 
                          /* ------------------------ */
                          /*  Level 2:  ~~  &&  ||    */
                          /* ------------------------ */
 
-  { 2, SEP_TT, LOGAND_SEP,      IN_U, L_A, 0, -1, -1, 0, LOGOR_OP,
+  { 2, SEP_TT, LOGAND_SEP,      IN_U, L_A, 0, -1, -1, -1, 0, LOGOR_OP,
       "logical conjunction '&&'" },
-  { 2, SEP_TT, LOGOR_SEP,       IN_U, L_A, 0, -1, -1, 0, LOGAND_OP,
+  { 2, SEP_TT, LOGOR_SEP,       IN_U, L_A, 0, -1, -1, -1, 0, LOGAND_OP,
       "logical disjunction '||'" },
-  { 2, SEP_TT, LOGNOT_SEP,     PRE_U, R_A, 0, -1, -1, 0, LOGNOT_OP,
+  { 2, SEP_TT, LOGNOT_SEP,     PRE_U, R_A, 0, -1, -1, -1, 0, LOGNOT_OP,
       "logical negation '~~'" },
 
                          /* ------------------------ */
@@ -130,82 +141,82 @@ operator operators[NUM_OPERATORS] =
                          /*            ofclass       */
                          /* ------------------------ */
 
-  { 3,     -1, -1,                -1, 0, 0, 400 + jz_zc, ZERO_CC+0, 0, NONZERO_OP,
+  { 3,     -1, -1,                -1, 0, 0, 400 + jz_zc, ZERO_CC+0, i32_eqz_wc, 0, NONZERO_OP,
       "expression used as condition then negated" },
-  { 3,     -1, -1,                -1, 0, 0, 800 + jz_zc, ZERO_CC+1, 0, ZERO_OP,
+  { 3,     -1, -1,                -1, 0, 0, 800 + jz_zc, ZERO_CC+1, i32_nez_wc, 0, ZERO_OP,
       "expression used as condition" },
-  { 3, SEP_TT, CONDEQUALS_SEP,  IN_U, 0, 0, 400 + je_zc, EQUAL_CC+0, 0, NOTEQUAL_OP,
+  { 3, SEP_TT, CONDEQUALS_SEP,  IN_U, 0, 0, 400 + je_zc, EQUAL_CC+0, i32_eq_wc, 0, NOTEQUAL_OP,
       "'==' condition" },
-  { 3, SEP_TT, NOTEQUAL_SEP,    IN_U, 0, 0, 800 + je_zc, EQUAL_CC+1, 0, CONDEQUALS_OP,
+  { 3, SEP_TT, NOTEQUAL_SEP,    IN_U, 0, 0, 800 + je_zc, EQUAL_CC+1, i32_ne_wc, 0, CONDEQUALS_OP,
       "'~=' condition" },
-  { 3, SEP_TT, GE_SEP,          IN_U, 0, 0, 800 + jl_zc, LT_CC+1, 0, LESS_OP,
+  { 3, SEP_TT, GE_SEP,          IN_U, 0, 0, 800 + jl_zc, LT_CC+1, i32_ge_s_wc, 0, LESS_OP,
       "'>=' condition" },
-  { 3, SEP_TT, GREATER_SEP,     IN_U, 0, 0, 400 + jg_zc, GT_CC+0, 0, LE_OP,
+  { 3, SEP_TT, GREATER_SEP,     IN_U, 0, 0, 400 + jg_zc, GT_CC+0, i32_gt_s_wc, 0, LE_OP,
       "'>' condition" },
-  { 3, SEP_TT, LE_SEP,          IN_U, 0, 0, 800 + jg_zc, GT_CC+1, 0, GREATER_OP,
+  { 3, SEP_TT, LE_SEP,          IN_U, 0, 0, 800 + jg_zc, GT_CC+1, i32_le_s_wc, 0, GREATER_OP,
       "'<=' condition" },
-  { 3, SEP_TT, LESS_SEP,        IN_U, 0, 0, 400 + jl_zc, LT_CC+0, 0, GE_OP,
+  { 3, SEP_TT, LESS_SEP,        IN_U, 0, 0, 400 + jl_zc, LT_CC+0, i32_lt_s_wc, 0, GE_OP,
       "'<' condition" },
-  { 3, CND_TT, HAS_COND,        IN_U, 0, 0, 400 + test_attr_zc, HAS_CC+0, 0, HASNT_OP,
+  { 3, CND_TT, HAS_COND,        IN_U, 0, 0, 400 + test_attr_zc, HAS_CC+0, -1, 0, HASNT_OP,
       "'has' condition" },
-  { 3, CND_TT, HASNT_COND,      IN_U, 0, 0, 800 + test_attr_zc, HAS_CC+1, 0, HAS_OP,
+  { 3, CND_TT, HASNT_COND,      IN_U, 0, 0, 800 + test_attr_zc, HAS_CC+1, -1, 0, HAS_OP,
       "'hasnt' condition" },
-  { 3, CND_TT, IN_COND,         IN_U, 0, 0, 400 + jin_zc, IN_CC+0, 0, NOTIN_OP,
+  { 3, CND_TT, IN_COND,         IN_U, 0, 0, 400 + jin_zc, IN_CC+0, -1, 0, NOTIN_OP,
       "'in' condition" },
-  { 3, CND_TT, NOTIN_COND,      IN_U, 0, 0, 800 + jin_zc, IN_CC+1, 0, IN_OP,
+  { 3, CND_TT, NOTIN_COND,      IN_U, 0, 0, 800 + jin_zc, IN_CC+1, -1, 0, IN_OP,
       "'notin' condition" },
-  { 3, CND_TT, OFCLASS_COND,    IN_U, 0, 0, 600, OFCLASS_CC+0, 0, NOTOFCLASS_OP,
+  { 3, CND_TT, OFCLASS_COND,    IN_U, 0, 0, 600, OFCLASS_CC+0, -1, 0, NOTOFCLASS_OP,
       "'ofclass' condition" },
-  { 3, CND_TT, PROVIDES_COND,   IN_U, 0, 0, 601, PROVIDES_CC+0, 0, NOTPROVIDES_OP,
+  { 3, CND_TT, PROVIDES_COND,   IN_U, 0, 0, 601, PROVIDES_CC+0, -1, 0, NOTPROVIDES_OP,
       "'provides' condition" },
-  { 3,     -1, -1,                -1, 0, 0, 1000, OFCLASS_CC+1, 0, OFCLASS_OP,
+  { 3,     -1, -1,                -1, 0, 0, 1000, OFCLASS_CC+1, -1, 0, OFCLASS_OP,
       "negated 'ofclass' condition" },
-  { 3,     -1, -1,                -1, 0, 0, 1001, PROVIDES_CC+1, 0, PROVIDES_OP,
+  { 3,     -1, -1,                -1, 0, 0, 1001, PROVIDES_CC+1, -1, 0, PROVIDES_OP,
       "negated 'provides' condition" },
 
                          /* ------------------------ */
                          /*  Level 4:  or            */
                          /* ------------------------ */
 
-  { 4, CND_TT, OR_COND,         IN_U, L_A, 0, -1, -1, 0, 0, "'or'" },
+  { 4, CND_TT, OR_COND,         IN_U, L_A, 0, -1, -1, -1, 0, 0, "'or'" },
 
                          /* ------------------------ */
                          /*  Level 5:  +  binary -   */
                          /* ------------------------ */
 
-  { 5, SEP_TT, PLUS_SEP,        IN_U, L_A, 0, add_zc, add_gc, 0, 0, "'+'" },
-  { 5, SEP_TT, MINUS_SEP,       IN_U, L_A, 0, sub_zc, sub_gc, 0, 0, "'-'" },
+  { 5, SEP_TT, PLUS_SEP,        IN_U, L_A, 0, add_zc, add_gc, i32_add_wc, 0, 0, "'+'" },
+  { 5, SEP_TT, MINUS_SEP,       IN_U, L_A, 0, sub_zc, sub_gc, i32_sub_wc,0, 0, "'-'" },
 
                          /* ------------------------ */
                          /*  Level 6:  *  /  %       */
                          /*            &  |  ~       */
                          /* ------------------------ */
 
-  { 6, SEP_TT, TIMES_SEP,       IN_U, L_A, 0, mul_zc, mul_gc, 0, 0, "'*'" },
-  { 6, SEP_TT, DIVIDE_SEP,      IN_U, L_A, 0, div_zc, div_gc, 0, 0, "'/'" },
-  { 6, SEP_TT, REMAINDER_SEP,   IN_U, L_A, 0, mod_zc, mod_gc, 0, 0,
+  { 6, SEP_TT, TIMES_SEP,       IN_U, L_A, 0, mul_zc, mul_gc, i32_mul_wc, 0, 0, "'*'" },
+  { 6, SEP_TT, DIVIDE_SEP,      IN_U, L_A, 0, div_zc, div_gc, i32_div_s_wc,0, 0, "'/'" },
+  { 6, SEP_TT, REMAINDER_SEP,   IN_U, L_A, 0, mod_zc, mod_gc, i32_rem_s_wc, 0, 0,
       "remainder after division '%'" },
-  { 6, SEP_TT, ARTAND_SEP,      IN_U, L_A, 0, and_zc, bitand_gc, 0, 0,
+  { 6, SEP_TT, ARTAND_SEP,      IN_U, L_A, 0, and_zc, bitand_gc, i32_and_wc, 0, 0,
       "bitwise AND '&'" },
-  { 6, SEP_TT, ARTOR_SEP,       IN_U, L_A, 0, or_zc, bitor_gc, 0, 0,
+  { 6, SEP_TT, ARTOR_SEP,       IN_U, L_A, 0, or_zc, bitor_gc, i32_or_wc, 0, 0,
       "bitwise OR '|'" },
-  { 6, SEP_TT, ARTNOT_SEP,     PRE_U, R_A, 0, -1, bitnot_gc, 0, 0,
+  { 6, SEP_TT, ARTNOT_SEP,     PRE_U, R_A, 0, -1, bitnot_gc, i32_not_wc, 0, 0,
       "bitwise NOT '~'" },
 
                          /* ------------------------ */
                          /*  Level 7:  ->  -->       */
                          /* ------------------------ */
 
-  { 7, SEP_TT, ARROW_SEP,       IN_U, L_A, 0, -1, -1, 0, 0,
+  { 7, SEP_TT, ARROW_SEP,       IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "byte array operator '->'" },
-  { 7, SEP_TT, DARROW_SEP,      IN_U, L_A, 0, -1, -1, 0, 0,
+  { 7, SEP_TT, DARROW_SEP,      IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "word array operator '-->'" },
 
                          /* ------------------------ */
                          /*  Level 8:  unary -       */
                          /* ------------------------ */
 
-  { 8, SEP_TT, UNARY_MINUS_SEP, PRE_U, R_A, 0, -1, neg_gc, 0, 0,
+  { 8, SEP_TT, UNARY_MINUS_SEP, PRE_U, R_A, 0, -1, neg_gc, -1, 0, 0,
       "unary minus" },
 
                          /* ------------------------ */
@@ -213,13 +224,13 @@ operator operators[NUM_OPERATORS] =
                          /*  (prefix or postfix)     */
                          /* ------------------------ */
 
-  { 9, SEP_TT, INC_SEP,         PRE_U, R_A, 2, -1, -1, 1, 0,
+  { 9, SEP_TT, INC_SEP,         PRE_U, R_A, 2, -1, -1, -1, 1, 0,
       "pre-increment operator '++'" },
-  { 9, SEP_TT, POST_INC_SEP,   POST_U, R_A, 3, -1, -1, 1, 0,
+  { 9, SEP_TT, POST_INC_SEP,   POST_U, R_A, 3, -1, -1, -1, 1, 0,
       "post-increment operator '++'" },
-  { 9, SEP_TT, DEC_SEP,         PRE_U, R_A, 4, -1, -1, 1, 0,
+  { 9, SEP_TT, DEC_SEP,         PRE_U, R_A, 4, -1, -1, -1, 1, 0,
       "pre-decrement operator '--'" },
-  { 9, SEP_TT, POST_DEC_SEP,   POST_U, R_A, 5, -1, -1, 1, 0,
+  { 9, SEP_TT, POST_DEC_SEP,   POST_U, R_A, 5, -1, -1, -1, 1, 0,
       "post-decrement operator '--'" },
 
                          /* ------------------------ */
@@ -227,36 +238,36 @@ operator operators[NUM_OPERATORS] =
                          /*            ..&  ..#      */
                          /* ------------------------ */
 
-  {10, SEP_TT, PROPADD_SEP,     IN_U, L_A, 0, -1, -1, 0, 0,
+  {10, SEP_TT, PROPADD_SEP,     IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "property address operator '.&'" },
-  {10, SEP_TT, PROPNUM_SEP,     IN_U, L_A, 0, -1, -1, 0, 0,
+  {10, SEP_TT, PROPNUM_SEP,     IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "property length operator '.#'" },
-  {10, SEP_TT, MPROPADD_SEP,    IN_U, L_A, 0, -1, -1, 0, 0,
+  {10, SEP_TT, MPROPADD_SEP,    IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "individual property address operator '..&'" },
-  {10, SEP_TT, MPROPNUM_SEP,    IN_U, L_A, 0, -1, -1, 0, 0,
+  {10, SEP_TT, MPROPNUM_SEP,    IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "individual property length operator '..#'" },
 
                          /* ------------------------ */
                          /*  Level 11:  function (   */
                          /* ------------------------ */
 
-  {11, SEP_TT, OPENB_SEP,       IN_U, L_A, 0, -1, -1, 1, 0,
+  {11, SEP_TT, OPENB_SEP,       IN_U, L_A, 0, -1, -1, -1, 1, 0,
       "function call" },
 
                          /* ------------------------ */
                          /*  Level 12:  .  ..        */
                          /* ------------------------ */
 
-  {12, SEP_TT, MESSAGE_SEP,     IN_U, L_A, 0, -1, -1, 0, 0,
+  {12, SEP_TT, MESSAGE_SEP,     IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "individual property selector '..'" },
-  {12, SEP_TT, PROPERTY_SEP,    IN_U, L_A, 0, -1, -1, 0, 0,
+  {12, SEP_TT, PROPERTY_SEP,    IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "property selector '.'" },
 
                          /* ------------------------ */
                          /*  Level 13:  ::           */
                          /* ------------------------ */
 
-  {13, SEP_TT, SUPERCLASS_SEP,  IN_U, L_A, 0, -1, -1, 0, 0,
+  {13, SEP_TT, SUPERCLASS_SEP,  IN_U, L_A, 0, -1, -1, -1, 0, 0,
       "superclass operator '::'" },
 
                          /* ------------------------ */
@@ -265,54 +276,54 @@ operator operators[NUM_OPERATORS] =
                          /*  checking time           */
                          /* ------------------------ */
 
-  { 1,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ->   =   */
+  { 1,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ->   =   */
       "byte array entry assignment" },
-  { 1,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      -->  =   */
+  { 1,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      -->  =   */
       "word array entry assignment" },
-  { 1,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ..   =   */
+  { 1,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ..   =   */
       "individual property assignment" },
-  { 1,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      .    =   */
+  { 1,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      .    =   */
       "common property assignment" },
 
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   ++ ->       */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   ++ ->       */
       "byte array entry preincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   ++ -->      */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   ++ -->      */
       "word array entry preincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   ++ ..       */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   ++ ..       */
       "individual property preincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   ++ .        */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   ++ .        */
       "common property preincrement" },
 
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   -- ->       */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   -- ->       */
       "byte array entry predecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   -- -->      */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   -- -->      */
       "word array entry predecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   -- ..       */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   -- ..       */
       "individual property predecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   -- .        */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   -- .        */
       "common property predecrement" },
 
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ->  ++   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ->  ++   */
       "byte array entry postincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      --> ++   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      --> ++   */
       "word array entry postincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ..  ++   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ..  ++   */
       "individual property postincrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      .   ++   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      .   ++   */
       "common property postincrement" },
 
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ->  --   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ->  --   */
       "byte array entry postdecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      --> --   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      --> --   */
       "word array entry postdecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      ..  --   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      ..  --   */
       "individual property postdecrement" },
-  { 9,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*      .   --   */
+  { 9,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*      .   --   */
       "common property postdecrement" },
 
-  {11,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   x.y(args)   */
+  {11,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   x.y(args)   */
       "call to common property" },
-  {11,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0, /*   x..y(args)  */
+  {11,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0, /*   x..y(args)  */
       "call to individual property" },
 
                          /* ------------------------ */
@@ -322,7 +333,7 @@ operator operators[NUM_OPERATORS] =
                          /*  unchanged.              */
                          /* ------------------------ */
 
-  {14,     -1, -1,              -1,   -1,  0, -1, -1, 1, 0,     
+  {14,     -1, -1,              -1,   -1,  0, -1, -1, -1, 1, 0,     
       "push on stack" }
 };
 
@@ -1609,7 +1620,8 @@ static void generate_code_from(int n, int void_flag)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    printf("wab1");
+    //WABORT;
 
   }
 
@@ -2785,7 +2797,26 @@ static void generate_code_from(int n, int void_flag)
     }break;
 
     case TARGET_WASM:
-    WABORT;
+    printf("wabt2 %d\n", opnum);
+
+    switch (opnum) {
+	case PLUS_OP:
+	    assemblew_load(ET[below].value);
+            assemblew_load(ET[ET[below].right].value);
+           
+	    assemblew_0(i32_add_wc);
+
+	    assemblew_store(Result);
+	    break;
+
+	case FCALL_OP:
+	    assemblew_1(call_wc, ET[below].value);
+	    break;
+
+	default:
+
+	    WABORT;
+    }
     break;
   }
 
@@ -2860,7 +2891,8 @@ static void generate_code_from(int n, int void_flag)
 	break;
 
 	case TARGET_WASM:
-	WABORT;
+	printf("wabt3");
+	//WABORT;
 
     }
 

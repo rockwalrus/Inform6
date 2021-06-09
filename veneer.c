@@ -21,7 +21,7 @@ extern void compile_initial_routine(void)
     /*  The first routine present in memory in any Inform game, beginning
         at the code area start position, always has 0 local variables
         (since the interpreter begins execution with an empty stack frame):
-        and it must "quit" rather than "return".
+        and on the Z Machine it must "quit" rather than "return".
 
         In order not to impose these restrictions on "Main", we compile a
         trivial routine consisting of a call to "Main" followed by "quit".   */
@@ -63,8 +63,14 @@ extern void compile_initial_routine(void)
 	break;
 
 	case TARGET_WASM:
-	WABORT;
+        INITAOTV(&AO, CONSTANT_OT, 0);
+        AO.marker = MAIN_MV;
 
+        sequence_point_follows = FALSE;
+
+        assemblew_1(call_wc, AO);
+        assemblew_0(return_wc);
+	break;
     }
 
     assemble_routine_end(FALSE, null_debug_locations);
@@ -3369,7 +3375,17 @@ static void compile_symbol_table_routine(void)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    if (define_INFIX_switch == FALSE)
+    {   
+        variable_usage[1] = TRUE;
+        variable_usage[2] = TRUE;
+        assemble_routine_end(FALSE, null_debug_locations);
+        veneer_mode = FALSE;
+        return;
+    }
+
+    error("*** Infix symbol-table routine is not yet implemented. ***");
+    break;
   }
 }
 

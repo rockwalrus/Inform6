@@ -877,10 +877,14 @@ static int evaluate_term(token_data t, assembly_operand *o)
              o->value = compile_string(t.text, STRCTX_GAME);
              return(TRUE);
         case VARIABLE_TT:
-             if (target_machine == TARGET_ZCODE) {
+             switch (target_machine) {
+		 case TARGET_ZCODE: 
                  o->type = VARIABLE_OT;
-             }
-             else {
+                 o->value = t.value;
+		 break;
+
+
+		 case TARGET_GLULX:
                  if (t.value >= MAX_LOCAL_VARIABLES) {
                      o->type = GLOBALVAR_OT;
                  }
@@ -889,8 +893,20 @@ static int evaluate_term(token_data t, assembly_operand *o)
                         the stack-pointer magic variable. */
                      o->type = LOCALVAR_OT;
                  }
+                 o->value = t.value;
+		 break;
+
+		 case TARGET_WASM:
+                 if (t.value >= MAX_LOCAL_VARIABLES) {
+                     o->type = GLOBALVAR_OT;
+                 }
+                 else {
+                     o->type = LOCALVAR_OT;
+		 }
+		 /* WASM locals are zero-indexed */
+                 o->value = t.value - 1;
+		 break;
              }
-             o->value = t.value;
              return(TRUE);
         case SYSFUN_TT:
              if (target_machine == TARGET_ZCODE) {

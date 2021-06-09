@@ -1906,6 +1906,12 @@ printf("  extn  +---------------------+   %06lx\n", (long int) Out_Size+MEMORY_M
     }
 }
 
+static void construct_storyfile_w(void)
+{
+    WSTUB
+}
+
+
 extern void construct_storyfile(void)
 {
   switch (target_machine) {
@@ -1918,7 +1924,7 @@ extern void construct_storyfile(void)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    construct_storyfile_g();
   }
 }
 

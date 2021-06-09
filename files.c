@@ -1345,6 +1345,42 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0);
     sf_put(0);
 
+    /* Custom Inform section */
+    sf_put(0);
+    sf_put(GLULX_STATIC_ROM_SIZE+sizeof("Inform"));
+    sf_put(6);
+    sf_put('I');
+    sf_put('n');
+    sf_put('f');
+    sf_put('o');
+    sf_put('r');
+    sf_put('m');
+
+    /* Eight byte layout identifier */
+    sf_put('I'); sf_put('n'); sf_put('f'); sf_put('o');
+    sf_put(0); sf_put(1); sf_put(0); sf_put(0);
+    /* Inform version number */
+    sf_put('0' + ((RELEASE_NUMBER/100)%10));
+    sf_put('.');
+    sf_put('0' + ((RELEASE_NUMBER/10)%10));
+    sf_put('0' + RELEASE_NUMBER%10);
+    /* Glulx back-end version number */
+    sf_put('0' + ((GLULX_RELEASE_NUMBER/100)%10));
+    sf_put('.');
+    sf_put('0' + ((GLULX_RELEASE_NUMBER/10)%10));
+    sf_put('0' + GLULX_RELEASE_NUMBER%10);
+    /* Game release number */
+    sf_put((release_number>>8) & 0xFF);
+    sf_put(release_number & 0xFF);
+    /* Game serial number */
+    {
+      char serialnum[8];
+      write_serial_number(serialnum);
+      for (i=0; i<6; i++)
+        sf_put(serialnum[i]);
+    }
+
+
     /* Type section */
     sf_put(0x01);
     sf_put(0x0b);
@@ -1419,34 +1455,6 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     
     size = GLULX_HEADER_SIZE;
 
-    /*  (1a) Output the eight-byte memory layout identifier. */
-
-    sf_put('I'); sf_put('n'); sf_put('f'); sf_put('o');
-    sf_put(0); sf_put(1); sf_put(0); sf_put(0);
-
-    /*  (1b) Output the rest of the Inform-specific data. */
-
-    /* Inform version number */
-    sf_put('0' + ((RELEASE_NUMBER/100)%10));
-    sf_put('.');
-    sf_put('0' + ((RELEASE_NUMBER/10)%10));
-    sf_put('0' + RELEASE_NUMBER%10);
-    /* Glulx back-end version number */
-    sf_put('0' + ((GLULX_RELEASE_NUMBER/100)%10));
-    sf_put('.');
-    sf_put('0' + ((GLULX_RELEASE_NUMBER/10)%10));
-    sf_put('0' + GLULX_RELEASE_NUMBER%10);
-    /* Game release number */
-    sf_put((release_number>>8) & 0xFF);
-    sf_put(release_number & 0xFF);
-    /* Game serial number */
-    {
-      char serialnum[8];
-      write_serial_number(serialnum);
-      for (i=0; i<6; i++)
-        sf_put(serialnum[i]);
-    }
-    size += GLULX_STATIC_ROM_SIZE;
 #endif
 
     /*  (2)  Output the compiled code area. */

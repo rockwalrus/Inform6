@@ -2810,9 +2810,12 @@ static void generate_code_from(int n, int void_flag)
 	    break;
 
 	case FCALL_OP:
-	    {assembly_operand a = ET[below].value;
-	    printf("FCALL val %d index %d type %d flags %d narker %d \n", a.value, a.symindex, a.symtype, a.symflags, a.marker);
-	    assemblew_1(call_wc, ET[below].value);}
+            j = ET[i].right;
+            while (j != -1) {
+	      assemblew_load(ET[j].value);
+              j = ET[j].right;
+            }
+	    assemblew_1(call_wc, ET[below].value);
 	    break;
 
 	default:

@@ -200,7 +200,7 @@ operator operators[NUM_OPERATORS] =
       "bitwise AND '&'" },
   { 6, SEP_TT, ARTOR_SEP,       IN_U, L_A, 0, or_zc, bitor_gc, i32_or_wc, 0, 0,
       "bitwise OR '|'" },
-  { 6, SEP_TT, ARTNOT_SEP,     PRE_U, R_A, 0, -1, bitnot_gc, i32_not_wc, 0, 0,
+  { 6, SEP_TT, ARTNOT_SEP,     PRE_U, R_A, 0, -1, bitnot_gc, -1, 0, 0,
       "bitwise NOT '~'" },
 
                          /* ------------------------ */
@@ -2797,18 +2797,17 @@ static void generate_code_from(int n, int void_flag)
     }break;
 
     case TARGET_WASM:
-    printf("wabt2 %d\n", opnum);
+    if (operators[opnum].opcode_number_w != -1){
+	assemblew_load(ET[below].value);
+        assemblew_load(ET[ET[below].right].value);
+           
+        assemblew_0(operators[opnum].opcode_number_w);
+
+        assemblew_store(Result);
+	break;
+    }
 
     switch (opnum) {
-	case PLUS_OP:
-	    assemblew_load(ET[below].value);
-            assemblew_load(ET[ET[below].right].value);
-           
-	    assemblew_0(i32_add_wc);
-
-	    assemblew_store(Result);
-	    break;
-
 	case FCALL_OP:
             j = ET[i].right;
             while (j != -1) {
@@ -2820,6 +2819,7 @@ static void generate_code_from(int n, int void_flag)
 
 	default:
 
+            printf("unimplemented op %d\n", opnum);
 	    WABORT;
     }
     break;

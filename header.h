@@ -1262,14 +1262,15 @@ typedef struct operator_s
 #define i32_ge_s_wc 0
 #define i32_le_s_wc 0
 #define i32_lt_s_wc 0
-#define i32_add_wc 19
-#define i32_sub_wc 0
-#define i32_mul_wc 0
-#define i32_div_s_wc 0
-#define i32_rem_s_wc 0
-#define i32_and_wc 0
-#define i32_or_wc 0
-#define i32_not_wc 0
+#define i32_add_wc   19
+#define i32_sub_wc   20
+#define i32_mul_wc   21
+#define i32_div_s_wc 22
+#define i32_div_u_wc 23
+#define i32_rem_s_wc 24
+#define i32_rem_u_wc 25
+#define i32_and_wc   26
+#define i32_or_wc    27
 
 
 #define SYMBOL_TT    0                      /* value = index in symbol table */

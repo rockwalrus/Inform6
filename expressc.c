@@ -55,10 +55,12 @@ static void make_operands(void)
 
     case TARGET_WASM:
     INITAOT(&stack_pointer, STACK_OT);
-    INITAOTV(&temp_var1, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+0);
-    INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
+
+    INITAOT(&temp_var1, LOCALVAR_OT); /* Set dynamically in assemble_routine_heater */
+    /*INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
     INITAOTV(&temp_var3, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
-    INITAOTV(&temp_var4, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+3);
+    INITAOTV(&temp_var4, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
+
     INITAOTV(&neg_one_operand, CONSTANT_OT, -1);
     INITAOTV(&zero_operand, CONSTANT_OT, 0);
     INITAOTV(&one_operand, CONSTANT_OT, 1);
@@ -2814,6 +2816,17 @@ static void generate_code_from(int n, int void_flag)
             assemblew_load(neg_one_operand);
            
             assemblew_0(i32_xor_wc);
+
+            assemblew_store(Result);
+	break;
+    
+	case UNARY_MINUS_OP:
+	    assemblew_load(ET[below].value);
+	    assemblew_store(temp_var1);
+            assemblew_load(zero_operand);
+            assemblew_load(temp_var1);
+           
+            assemblew_0(i32_sub_wc);
 
             assemblew_store(Result);
 	break;

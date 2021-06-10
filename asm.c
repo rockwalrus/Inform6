@@ -232,6 +232,7 @@ extern char *variable_name(int32 i)
       break;
 
       case TARGET_WASM:
+      if (i == temp_var1.value) return "TEMP";
       if (i<MAX_LOCAL_VARIABLES) return local_variable_texts[i];
 WABORT;
     }
@@ -760,17 +761,18 @@ static opcodew opcodes_table_w[] = {
   /* 15 */ {(uchar *) "return",    0x0f, Rf, 0},
   /* 16 */ {(uchar *) "call",      0x10, 0,  1},
   /* 17 */ {(uchar *) "local.get", 0x20, 0,  1},
-  /* 18 */ {(uchar *) "i32.const", 0x41, 0,  1},
-  /* 19 */ {(uchar *) "i32.add",   0x6a, 0,  0},
-  /* 20 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
-  /* 21 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
-  /* 22 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
-  /* 23 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
-  /* 24 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
-  /* 25 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
-  /* 26 */ {(uchar *) "i32.and",   0x71, 0,  0},
-  /* 27 */ {(uchar *) "i32.or",    0x72, 0,  0},
-  /* 28 */ {(uchar *) "i32.xor",   0x73, 0,  0},
+  /* 18 */ {(uchar *) "local.set", 0x21, 0,  1},
+  /* 19 */ {(uchar *) "i32.const", 0x41, 0,  1},
+  /* 20 */ {(uchar *) "i32.add",   0x6a, 0,  0},
+  /* 21 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
+  /* 22 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
+  /* 23 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
+  /* 24 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
+  /* 25 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
+  /* 26 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
+  /* 27 */ {(uchar *) "i32.and",   0x71, 0,  0},
+  /* 28 */ {(uchar *) "i32.or",    0x72, 0,  0},
+  /* 29 */ {(uchar *) "i32.xor",   0x73, 0,  0},
 };
 
 static opcodez internal_number_to_opcode_z(int32 i)
@@ -2047,8 +2049,16 @@ extern int32 assemble_routine_header(int no_locals,
 
       case TARGET_WASM:
       rv = no_routines - 1; /* WebAssembly uses indices instead of addresses */
+
       byteout(0xee, 0); /* size */
-      byteout(0, 0); /* non-parameter locals */
+
+      /* non-parameter locals */
+      byteout(1, 0); /* 1 declaration */
+ 
+      byteout(1, 0);    /* 1 */
+      byteout(0x7f, 0); /* i32 */
+
+      temp_var1.value = no_locals;
       break;
     }
 
@@ -3364,6 +3374,10 @@ void assemblew_store(assembly_operand o1)
 	case STACK_OT:
 	    /* it's already on the stack */
 	    break;
+	
+	case LOCALVAR_OT:
+	    assemblew_1(local_set_wc, o1);
+            break;
 
 	default:
 	    printf("%d\n", o1.type);

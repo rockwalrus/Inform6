@@ -1271,6 +1271,7 @@ typedef struct operator_s
 #define i32_rem_u_wc 25
 #define i32_and_wc   26
 #define i32_or_wc    27
+#define i32_xor_wc   28
 
 
 #define SYMBOL_TT    0                      /* value = index in symbol table */

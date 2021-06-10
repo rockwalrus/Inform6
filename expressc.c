@@ -19,7 +19,7 @@ int vivc_flag;                      /*  TRUE if the last code-generated
 /* These data structures are global, because they're too useful to be
    static. */
 assembly_operand stack_pointer, temp_var1, temp_var2, temp_var3,
-  temp_var4, zero_operand, one_operand, two_operand, three_operand,
+  temp_var4, neg_one_operand, zero_operand, one_operand, two_operand, three_operand,
   four_operand, valueless_operand;
 
 static void make_operands(void)
@@ -59,6 +59,7 @@ static void make_operands(void)
     INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
     INITAOTV(&temp_var3, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
     INITAOTV(&temp_var4, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+3);
+    INITAOTV(&neg_one_operand, CONSTANT_OT, -1);
     INITAOTV(&zero_operand, CONSTANT_OT, 0);
     INITAOTV(&one_operand, CONSTANT_OT, 1);
     INITAOTV(&two_operand, CONSTANT_OT, 2);
@@ -2808,6 +2809,15 @@ static void generate_code_from(int n, int void_flag)
     }
 
     switch (opnum) {
+	case ARTNOT_OP:
+	    assemblew_load(ET[below].value);
+            assemblew_load(neg_one_operand);
+           
+            assemblew_0(i32_xor_wc);
+
+            assemblew_store(Result);
+	break;
+    
 	case FCALL_OP:
             j = ET[i].right;
             while (j != -1) {

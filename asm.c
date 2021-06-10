@@ -770,6 +770,7 @@ static opcodew opcodes_table_w[] = {
   /* 25 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
   /* 26 */ {(uchar *) "i32.and",   0x71, 0,  0},
   /* 27 */ {(uchar *) "i32.or",    0x72, 0,  0},
+  /* 28 */ {(uchar *) "i32.xor",   0x73, 0,  0},
 };
 
 static opcodez internal_number_to_opcode_z(int32 i)
@@ -1588,7 +1589,7 @@ extern void assemblew_instruction(assembly_instruction *AI)
         int type = AI->operand[ix].type;
         k = AI->operand[ix].value;
 
-	byteout(k, marker);
+	byteout(k & 0x7f, marker); //WSTUB LEB128
         /*if ((opco.flags & Br) && (ix == no_operands_given-1)) {
             if (!(marker >= BRANCH_MV && marker < BRANCHMAX_MV)) {
                 compiler_error("Assembling branch without BRANCH_MV marker");

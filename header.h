@@ -1254,7 +1254,8 @@ typedef struct operator_s
 #define call_wc      16
 #define local_get_wc 17 
 #define local_set_wc 18 
-#define i32_const_wc 19
+#define local_tee_wc 19 
+#define i32_const_wc 20
 #define i32_eqz_wc 0
 #define i32_nez_wc 0
 #define i32_eq_wc 0
@@ -1263,16 +1264,16 @@ typedef struct operator_s
 #define i32_ge_s_wc 0
 #define i32_le_s_wc 0
 #define i32_lt_s_wc 0
-#define i32_add_wc   20
-#define i32_sub_wc   21
-#define i32_mul_wc   22
-#define i32_div_s_wc 23
-#define i32_div_u_wc 24
-#define i32_rem_s_wc 25
-#define i32_rem_u_wc 26
-#define i32_and_wc   27
-#define i32_or_wc    28
-#define i32_xor_wc   29
+#define i32_add_wc   21
+#define i32_sub_wc   22
+#define i32_mul_wc   23
+#define i32_div_s_wc 24
+#define i32_div_u_wc 25
+#define i32_rem_s_wc 26
+#define i32_rem_u_wc 27
+#define i32_and_wc   28
+#define i32_or_wc    29
+#define i32_xor_wc   30
 
 
 #define SYMBOL_TT    0                      /* value = index in symbol table */
@@ -2271,6 +2272,7 @@ extern void assemblew_1(int internal_number, assembly_operand o1);
 extern void assemblew_3(int internal_number, assembly_operand o1,
   assembly_operand o2, assembly_operand o3);
 extern void assemblew_load(assembly_operand o1);
+extern void assemblew_tee(assembly_operand o1);
 extern void assemblew_store(assembly_operand o1);
 
 extern void parse_assembly(void);

@@ -762,17 +762,18 @@ static opcodew opcodes_table_w[] = {
   /* 16 */ {(uchar *) "call",      0x10, 0,  1},
   /* 17 */ {(uchar *) "local.get", 0x20, 0,  1},
   /* 18 */ {(uchar *) "local.set", 0x21, 0,  1},
-  /* 19 */ {(uchar *) "i32.const", 0x41, 0,  1},
-  /* 20 */ {(uchar *) "i32.add",   0x6a, 0,  0},
-  /* 21 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
-  /* 22 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
-  /* 23 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
-  /* 24 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
-  /* 25 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
-  /* 26 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
-  /* 27 */ {(uchar *) "i32.and",   0x71, 0,  0},
-  /* 28 */ {(uchar *) "i32.or",    0x72, 0,  0},
-  /* 29 */ {(uchar *) "i32.xor",   0x73, 0,  0},
+  /* 19 */ {(uchar *) "local.tee", 0x22, 0,  1},
+  /* 20 */ {(uchar *) "i32.const", 0x41, 0,  1},
+  /* 21 */ {(uchar *) "i32.add",   0x6a, 0,  0},
+  /* 22 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
+  /* 23 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
+  /* 24 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
+  /* 25 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
+  /* 26 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
+  /* 27 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
+  /* 28 */ {(uchar *) "i32.and",   0x71, 0,  0},
+  /* 29 */ {(uchar *) "i32.or",    0x72, 0,  0},
+  /* 30 */ {(uchar *) "i32.xor",   0x73, 0,  0},
 };
 
 static opcodez internal_number_to_opcode_z(int32 i)
@@ -3368,6 +3369,22 @@ void assemblew_load(assembly_operand o1)
     }
 }
 
+void assemblew_tee(assembly_operand o1)
+{
+    switch (o1.type) {
+	case STACK_OT:
+	    /* it's already on the stack */
+	    break;
+	
+	case LOCALVAR_OT:
+	    assemblew_1(local_tee_wc, o1);
+            break;
+
+	default:
+	    printf("%d\n", o1.type);
+	    WABORT;
+    }
+}
 void assemblew_store(assembly_operand o1)
 {
     switch (o1.type) {

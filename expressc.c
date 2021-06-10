@@ -2811,6 +2811,17 @@ static void generate_code_from(int n, int void_flag)
     }
 
     switch (opnum) {
+        case SETEQUALS_OP:
+	     assemblew_load(ET[ET[below].right].value);
+
+	     if (void_flag) {
+	         assemblew_store(ET[below].value);
+	     } else {
+	         assemblew_tee(ET[below].value);
+	         assemblew_store(Result);
+	     }
+             break;
+
 	case ARTNOT_OP:
 	    assemblew_load(ET[below].value);
             assemblew_load(neg_one_operand);

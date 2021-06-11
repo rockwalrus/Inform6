@@ -2811,6 +2811,33 @@ static void generate_code_from(int n, int void_flag)
     }
 
     switch (opnum) {
+        case INC_OP:
+        case DEC_OP:
+	     assemblew_load(ET[below].value);
+	     assemblew_load(opnum == INC_OP ? one_operand : neg_one_operand);
+	     assemblew_0(i32_add_wc);
+
+	     if (void_flag) {
+	         assemblew_store(ET[below].value);
+	     } else {
+	         assemblew_tee(ET[below].value);
+	         assemblew_store(Result);
+	     }
+             break;
+
+        case POST_INC_OP:
+        case POST_DEC_OP:
+             if (!void_flag) assemblew_load(ET[below].value);
+
+             assemblew_load(ET[below].value);
+	     assemblew_load(opnum == POST_INC_OP ? one_operand : neg_one_operand);
+	     assemblew_0(i32_add_wc);
+
+	     assemblew_store(ET[below].value);
+	     
+	     if (!void_flag) assemblew_store(Result);
+             break;
+
         case SETEQUALS_OP:
 	     assemblew_load(ET[ET[below].right].value);
 

@@ -1409,6 +1409,20 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0x01);
     sf_put(0x01);
 
+    /* Export section */
+    sf_put(0x07); /* section code */
+    sf_put(0x0a); /* section size */
+    sf_put(0x01); /* num exports */
+    sf_put(0x06); /* name length */
+    sf_put('M');  /* name */
+    sf_put('a');
+    sf_put('i');
+    sf_put('n');
+    sf_put('_');
+    sf_put('_');
+    sf_put(0x00); /* export kind */
+    sf_put(0x00); /* func index */
+
     /* Code section */
     sf_put(0x0a);
     sf_put(zmachine_pc+1);

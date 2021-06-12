@@ -232,7 +232,8 @@ extern char *variable_name(int32 i)
       break;
 
       case TARGET_WASM:
-      if (i == temp_var1.value) return "TEMP";
+      if (i == temp_var1.value) return "TEMP1";
+      if (i == temp_var2.value) return "TEMP2";
       if (i<MAX_LOCAL_VARIABLES) return local_variable_texts[i];
 WABORT;
     }
@@ -2056,10 +2057,11 @@ extern int32 assemble_routine_header(int no_locals,
       /* non-parameter locals */
       byteout(1, 0); /* 1 declaration */
  
-      byteout(1, 0);    /* 1 */
+      byteout(2, 0);    /* 2 */
       byteout(0x7f, 0); /* i32 */
 
       temp_var1.value = no_locals;
+      temp_var2.value = no_locals + 1;
       break;
     }
 
@@ -2106,9 +2108,13 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
       }
     }
 
-    /* WebAssembly needs an end marker */
     if (target_machine == TARGET_WASM) {
+        /* WebAssembly needs an end marker */
 	byteout(0x0b, 0);
+
+	/* reset temp assignments so they don't show up in trace of next header */
+        temp_var1.value = -1;
+        temp_var2.value = -1;
     }
 
     /* Dump the contents of the current routine into longer-term Z-code

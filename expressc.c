@@ -56,10 +56,10 @@ static void make_operands(void)
     case TARGET_WASM:
     INITAOT(&stack_pointer, STACK_OT);
 
-    INITAOT(&temp_var1, LOCALVAR_OT); /* Set dynamically in assemble_routine_heater */
-    /*INITAOTV(&temp_var2, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+1);
-    INITAOTV(&temp_var3, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
-    INITAOTV(&temp_var4, GLOBALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
+    INITAOTV(&temp_var1, LOCALVAR_OT, -1); /* Set dynamically in assemble_routine_heater */
+    INITAOTV(&temp_var2, LOCALVAR_OT, -1);
+    /*INITAOTV(&temp_var3, LOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
+    INITAOTV(&temp_var4, LOBALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
 
     INITAOTV(&neg_one_operand, CONSTANT_OT, -1);
     INITAOTV(&zero_operand, CONSTANT_OT, 0);
@@ -2801,8 +2801,21 @@ static void generate_code_from(int n, int void_flag)
 
     case TARGET_WASM:
     if (operators[opnum].opcode_number_w != -1){
-	assemblew_load(ET[below].value);
-        assemblew_load(ET[ET[below].right].value);
+	assembly_operand AO1 = ET[below].value;
+	assembly_operand AO2 = ET[ET[below].right].value;
+	if (AO2.type == STACK_OT) {
+	    AO2 = temp_var1;
+	    assemblew_store(temp_var1);
+
+	    if (AO1.type == STACK_OT) {
+	        AO1 = temp_var1;
+	        AO2 = temp_var2;
+	        assemblew_store(temp_var2);
+	    }
+	}
+
+	assemblew_load(AO1);
+        assemblew_load(AO2);
            
         assemblew_0(operators[opnum].opcode_number_w);
 

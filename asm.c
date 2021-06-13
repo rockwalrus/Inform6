@@ -2052,6 +2052,9 @@ extern int32 assemble_routine_header(int no_locals,
       case TARGET_WASM:
       rv = no_routines - 1; /* WebAssembly uses indices instead of addresses */
 
+      i = no_named_routines++;
+      named_routine_symbols[i] = the_symbol;
+
       byteout(0xee, 0); /* size */
 
       /* non-parameter locals */

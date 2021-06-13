@@ -1277,6 +1277,27 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 #endif
 }
 
+static long section_size_pos_w;
+
+
+static void start_section_w(unsigned char type) {
+   sf_put(type);
+
+   section_size_pos_w = ftell(sf_handle);
+   sf_put(0); /* Placeholder for section size */
+}
+
+static void end_section_w() {
+   long end_pos = ftell(sf_handle);
+
+   /* backpatch section size */
+   fseek(sf_handle, section_size_pos_w, SEEK_SET);  
+   sf_put(end_pos - section_size_pos_w - 1);
+
+   fseek(sf_handle, 0L, SEEK_END);
+}
+
+
 static void output_file_w(void)
 {   FILE *fin=NULL; char new_name[PATHLEN];
     int32 size, i, j, offset;
@@ -1284,6 +1305,8 @@ static void output_file_w(void)
     uint32 code_length, size_before_code, next_cons_check;
     int use_function;
     int first_byte_of_triple, second_byte_of_triple, third_byte_of_triple;
+    char *symbol_name;
+
 
 
     /* At this point, construct_storyfile() has just been called. */
@@ -1346,9 +1369,13 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0);
 
     /* Custom Inform section */
-    sf_put(0);
-    sf_put(GLULX_STATIC_ROM_SIZE+sizeof("Inform"));
+    start_section_w(0x00);
+    
+    /* section name */
+    /* length */
     sf_put(6);
+
+    /* chars */
     sf_put('I');
     sf_put('n');
     sf_put('f');
@@ -1379,11 +1406,11 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
       for (i=0; i<6; i++)
         sf_put(serialnum[i]);
     }
+    end_section_w();
 
 
     /* Type section */
-    sf_put(0x01);
-    sf_put(0x0b);
+    start_section_w(0x01);
 
     sf_put(0x02);
 
@@ -1399,33 +1426,44 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0x01);
     sf_put(0x7f);
 
+    end_section_w();
+
 
     /* Function section */
-    sf_put(0x03);
-    sf_put(0x05);
+    start_section_w(0x03);
+
     sf_put(0x04);
     sf_put(0x00);
     sf_put(0x00);
     sf_put(0x01);
     sf_put(0x01);
 
+    end_section_w();
+
+
     /* Export section */
-    sf_put(0x07); /* section code */
-    sf_put(0x0a); /* section size */
-    sf_put(0x01); /* num exports */
-    sf_put(0x06); /* name length */
-    sf_put('M');  /* name */
-    sf_put('a');
-    sf_put('i');
-    sf_put('n');
-    sf_put('_');
-    sf_put('_');
-    sf_put(0x00); /* export kind */
-    sf_put(0x00); /* func index */
+    start_section_w(0x07);
+
+    sf_put(no_named_routines); /* num exports */
+ 
+    for (i=0; i<no_named_routines; i++) {
+        symbol_name = (char *)symbs[named_routine_symbols[i]];
+
+        sf_put(strlen(symbol_name)); /* name length */
+
+	/* name */
+	while (*symbol_name)
+            sf_put(*(symbol_name++)); 
+        
+	sf_put(0x00); /* export kind */
+        sf_put(svals[named_routine_symbols[i]]); /* func index */
+    }
+
+    end_section_w();
 
     /* Code section */
-    sf_put(0x0a);
-    sf_put(zmachine_pc+1);
+    start_section_w(0x0a);
+
     sf_put(0x04);
 
     /* RAMSTART */
@@ -1650,6 +1688,8 @@ printf("marker %d\n", backpatch_marker);
 
     if (size_before_code + code_length != size)
         compiler_error("Code output length did not match");
+
+    end_section_w();
 
 #if 0
     /*  (4)  Output the static strings area.                                 */

@@ -1287,7 +1287,7 @@ static void start_section_w(unsigned char type) {
    sf_put(0); /* Placeholder for section size */
 }
 
-static void end_section_w() {
+static void end_section_w(void) {
    long end_pos = ftell(sf_handle);
 
    /* backpatch section size */
@@ -1297,6 +1297,21 @@ static void end_section_w() {
    fseek(sf_handle, 0L, SEEK_END);
 }
 
+static void sf_put_string_w(const char *string) {
+    /* length */
+    sf_put(strlen(string));
+
+    /* chars */
+    while(*string)
+      sf_put(*string++);
+}
+
+static void start_custom_section_w(const char *name) {
+    start_section_w(0x00);
+    
+    /* section name */
+    sf_put_string_w(name);
+}
 
 static void output_file_w(void)
 {   FILE *fin=NULL; char new_name[PATHLEN];
@@ -1369,20 +1384,8 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0);
 
     /* Custom Inform section */
-    start_section_w(0x00);
+    start_custom_section_w("Inform");
     
-    /* section name */
-    /* length */
-    sf_put(6);
-
-    /* chars */
-    sf_put('I');
-    sf_put('n');
-    sf_put('f');
-    sf_put('o');
-    sf_put('r');
-    sf_put('m');
-
     /* Eight byte layout identifier */
     sf_put('I'); sf_put('n'); sf_put('f'); sf_put('o');
     sf_put(0); sf_put(1); sf_put(0); sf_put(0);
@@ -1449,11 +1452,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     for (i=0; i<no_named_routines; i++) {
         symbol_name = (char *)symbs[named_routine_symbols[i]];
 
-        sf_put(strlen(symbol_name)); /* name length */
-
-	/* name */
-	while (*symbol_name)
-            sf_put(*(symbol_name++)); 
+        sf_put_string_w(symbol_name); /* name */
         
 	sf_put(0x00); /* export kind */
         sf_put(svals[named_routine_symbols[i]]); /* func index */
@@ -1937,6 +1936,28 @@ printf("marker %d\n", backpatch_marker);
     }
 
 #endif
+    
+    /* Producers section (see https://github.com/WebAssembly/tool-conventions/blob/master/ProducersSection.md) */
+    start_custom_section_w("producers");
+
+    sf_put(2); /* field count */
+
+    sf_put_string_w("language");
+    sf_put(1); /* number of values */
+    sf_put_string_w("Inform");
+    sf_put_string_w("6");
+
+    sf_put_string_w("processed-by");
+    sf_put(1);
+    sf_put_string_w("Inform6");
+    sf_put(4);
+    sf_put('0' + ((RELEASE_NUMBER/100)%10));
+    sf_put('.');
+    sf_put('0' + ((RELEASE_NUMBER/10)%10));
+    sf_put('0' + RELEASE_NUMBER%10);
+    
+
+    end_section_w();
 
     fclose(sf_handle);
 

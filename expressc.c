@@ -146,7 +146,7 @@ operator operators[NUM_OPERATORS] =
 
   { 3,     -1, -1,                -1, 0, 0, 400 + jz_zc, ZERO_CC+0, i32_eqz_wc, 0, NONZERO_OP,
       "expression used as condition then negated" },
-  { 3,     -1, -1,                -1, 0, 0, 800 + jz_zc, ZERO_CC+1, i32_nez_wc, 0, ZERO_OP,
+  { 3,     -1, -1,                -1, 0, 0, 800 + jz_zc, ZERO_CC+1, -1,         0, ZERO_OP,
       "expression used as condition" },
   { 3, SEP_TT, CONDEQUALS_SEP,  IN_U, 0, 0, 400 + je_zc, EQUAL_CC+0, i32_eq_wc, 0, NOTEQUAL_OP,
       "'==' condition" },
@@ -1628,7 +1628,7 @@ static void generate_code_from(int n, int void_flag)
       /*  Conditional terms such as '==': */
       assemblew_load(ET[ET[n].down].value);
       assemblew_load(ET[ET[ET[n].down].right].value);
-      assemblew_0(i32_gt_s_wc);
+      assemblew_0(operators[opnum].opcode_number_w);
       assemblew_1(if_wc, valueless_operand);
       
 #if 0

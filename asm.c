@@ -3390,7 +3390,7 @@ void assemblew_load(assembly_operand o1)
 	    break;
 
 	default:
-	    printf("%d\n", o1.type);
+	    printf("%d %d\n", o1.type, o1.value);
 	    WABORT;
     }
 }

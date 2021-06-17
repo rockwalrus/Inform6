@@ -1627,7 +1627,8 @@ static void generate_code_from(int n, int void_flag)
       && opnum <= NOTPROVIDES_OP) {
       /*  Conditional terms such as '==': */
       assemblew_load(ET[ET[n].down].value);
-      assemblew_load(ET[ET[ET[n].down].right].value);
+      if (ET[ET[n].down].right != -1)
+        assemblew_load(ET[ET[ET[n].down].right].value);
       assemblew_0(operators[opnum].opcode_number_w);
       assemblew_1(if_wc, valueless_operand);
       
@@ -3147,7 +3148,13 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
 		  break;
 
 		  case TARGET_WASM:
-		  WABORT;
+		    assemblew_load(AO);
+
+		    if (label < -2)
+		      assemblew_0(i32_eqz_wc);
+
+		    assemblew_1(if_wc, valueless_operand);
+		    break;
                 }
                 AO.type = OMITTED_OT;
                 AO.value = 0;

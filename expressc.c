@@ -67,7 +67,7 @@ static void make_operands(void)
     INITAOTV(&two_operand, CONSTANT_OT, 2);
     INITAOTV(&three_operand, CONSTANT_OT, 3);
     INITAOTV(&four_operand, CONSTANT_OT, 4);
-    INITAOTV(&valueless_operand, OMITTED_OT, 0);
+    INITAOTV(&valueless_operand, CONSTANT_OT, 0x40); /* 0x40 signifies "void" */
     break;
   }
 }
@@ -1623,8 +1623,137 @@ static void generate_code_from(int n, int void_flag)
     break;
 
     case TARGET_WASM:
-    printf("wab1");
-    //WABORT;
+    if (opnum >= ZERO_OP 
+      && opnum <= NOTPROVIDES_OP) {
+      /*  Conditional terms such as '==': */
+      assemblew_load(ET[ET[n].down].value);
+      assemblew_load(ET[ET[ET[n].down].right].value);
+      assemblew_0(i32_gt_s_wc);
+      assemblew_1(if_wc, valueless_operand);
+      
+#if 0
+      int a = ET[n].true_label, b = ET[n].false_label;
+      int branch_away, branch_other, flag,
+        make_jump_away = FALSE, make_branch_label = FALSE;
+      int ccode = operators[opnum].opcode_number_g;
+      condclass *cc = &condclasses[(ccode-FIRST_CC) / 2];
+      flag = (ccode & 1) ? 0 : 1;
+
+      /*  If the comparison is "equal to (constant) 0", change it
+          to the simple "zero" test. Unfortunately, this doesn't
+          work for the commutative form "(constant) 0 is equal to". 
+          At least I don't think it does. */
+
+      if ((cc == &condclasses[1]) && (arity == 2)) {
+        i = ET[ET[n].down].right;
+        if ((ET[i].value.value == 0)
+          && (ET[i].value.marker == 0) 
+          && is_constant_ot(ET[i].value.type)) {
+          cc = &condclasses[0];
+        }
+      }
+
+      /*  If the condition has truth state flag, branch to
+          label a, and if not, to label b.  Possibly one of a, b
+          equals -1, meaning "continue from this instruction".
+          
+          branch_away is the label which is a branch away (the one
+          which isn't immediately after) and flag is the truth
+          state to branch there.
+
+          Note that when multiple instructions are needed (because
+          of the use of the 'or' operator) the branch_other label
+          is created if need be.
+      */
+      
+      /*  Reduce to the case where the branch_away label does exist:  */
+
+      if (a == -1) { a = b; b = -1; flag = !flag; }
+
+      branch_away = a; branch_other = b;
+      if (branch_other != -1) make_jump_away = TRUE;
+      
+      if ((arity > 2) && (flag == FALSE)) {
+        /*  In this case, we have an 'or' situation where multiple
+            instructions are needed and where the overall condition
+            is negated.  That is, we have, e.g.
+            
+            if not (A cond B or C or D) then branch_away
+            
+            which we transform into
+            
+            if (A cond B) then branch_other
+            if (A cond C) then branch_other
+            if not (A cond D) then branch_away
+            .branch_other                                          */
+        
+        if (branch_other == -1) {
+          branch_other = next_label++; make_branch_label = TRUE;
+        }
+      }
+
+      if (cc == &condclasses[0]) {
+        assembleg_1_branch((flag ? cc->posform : cc->negform), 
+          ET[below].value, branch_away);
+      }
+      else {
+        if (arity == 2) {
+          compile_conditional_w(cc, ET[below].value,
+            ET[ET[below].right].value, branch_away, flag);
+        }
+        else {
+          /*  The case of a condition using "or".
+              First: if the condition tests the stack pointer,
+              and it can't always be done in a single test, move
+              the value off the stack and into temporary variable
+              storage.  */
+
+          assembly_operand left_operand;
+          if (((ET[below].value.type == LOCALVAR_OT)
+            && (ET[below].value.value == 0))) {
+            assembleg_store(temp_var1, ET[below].value);
+            left_operand = temp_var1;
+          }
+          else {
+            left_operand = ET[below].value;
+          }
+          i = ET[below].right; 
+          arity--;
+
+          /*  "left_operand" now holds the quantity to be tested;
+              "i" holds the right operand reached so far;
+              "arity" the number of right operands.  */
+
+          while (i != -1) {
+            /*  We can compare the left_operand with
+            only one right operand at the time.  There are
+            two cases: it's the last right operand, or it
+            isn't.  */
+
+            if ((arity == 1) || flag)
+              compile_conditional_g(cc, left_operand,
+            ET[i].value, branch_away, flag);
+            else
+              compile_conditional_g(cc, left_operand,
+            ET[i].value, branch_other, !flag);
+
+            i = ET[i].right; 
+            arity--;
+          }
+        }
+      }
+      
+      /*  NB: These two conditions cannot both occur, fortunately!  */
+      
+      if (make_branch_label) assemble_label_no(branch_other);
+      if (make_jump_away) assembleg_jump(branch_other);
+      
+#endif
+      goto OperatorGenerated;
+    }
+
+    break;
+
 
   }
 

@@ -416,6 +416,7 @@ typedef struct opcodew
 #define Rf      4     /* "Return flag": execution never continues after this
                          opcode (e.g., is a return or unconditional jump) */
 #define St2 8     /* Store2 (second-to-last operand is store (Glulx)) */
+#define Bl 16 /* Block structure opcodes used by WASM, such as "end". Doesn't check or affect execution reachability TODO another flag for else's behavior? (opposite of Rf) */
 
     /* Codes for any unusual operand assembly rules */
 
@@ -744,37 +745,40 @@ static opcodeg opmacros_table_g[] = {
 static opcodeg custom_opcode_g;
 
 static opcodew opcodes_table_w[] = {
-  /* 00 */ {0, 0, 0, 0},
+  /* 00 */ {(uchar *) "unreachable", 0x00, Bl|Rf, 0},
   /* 01 */ {0, 0, 0, 0},
   /* 02 */ {0, 0, 0, 0},
   /* 03 */ {0, 0, 0, 0},
-  /* 04 */ {0, 0, 0, 0},
-  /* 05 */ {0, 0, 0, 0},
+  /* 04 */ {(uchar *) "if" ,  0x04, 0, 1},
+  /* 05 */ {(uchar *) "else", 0x05, Bl, 0},
   /* 06 */ {0, 0, 0, 0},
   /* 07 */ {0, 0, 0, 0},
   /* 08 */ {0, 0, 0, 0},
   /* 09 */ {0, 0, 0, 0},
-  /* 0A */ {0, 0, 0, 0},
-  /* 0B */ {0, 0, 0, 0},
-  /* 0C */ {0, 0, 0, 0},
-  /* 0D */ {0, 0, 0, 0},
-  /* 0E */ {0, 0, 0, 0},
+  /* 10 */ {0, 0, 0, 0},
+  /* 11 */ {(uchar *) "end",       0x0b, Bl, 0},
+  /* 12 */ {0, 0, 0, 0},
+  /* 13 */ {0, 0, 0, 0},
+  /* 14 */ {0, 0, 0, 0},
   /* 15 */ {(uchar *) "return",    0x0f, Rf, 0},
   /* 16 */ {(uchar *) "call",      0x10, 0,  1},
   /* 17 */ {(uchar *) "local.get", 0x20, 0,  1},
   /* 18 */ {(uchar *) "local.set", 0x21, 0,  1},
   /* 19 */ {(uchar *) "local.tee", 0x22, 0,  1},
   /* 20 */ {(uchar *) "i32.const", 0x41, 0,  1},
-  /* 21 */ {(uchar *) "i32.add",   0x6a, 0,  0},
-  /* 22 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
-  /* 23 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
-  /* 24 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
-  /* 25 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
-  /* 26 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
-  /* 27 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
-  /* 28 */ {(uchar *) "i32.and",   0x71, 0,  0},
-  /* 29 */ {(uchar *) "i32.or",    0x72, 0,  0},
-  /* 30 */ {(uchar *) "i32.xor",   0x73, 0,  0},
+  /* 21 */ {(uchar *) "i32.gt_s",  0x4a, 0,  0},
+  /* 22 */ {(uchar *) "i32.gt_u",  0x4b, 0,  0},
+  /* 23 */ {(uchar *) "i32.le_s",  0x4c, 0,  0},
+  /* 24 */ {(uchar *) "i32.add",   0x6a, 0,  0},
+  /* 25 */ {(uchar *) "i32.sub",   0x6b, 0,  0},
+  /* 26 */ {(uchar *) "i32.mul",   0x6c, 0,  0},
+  /* 27 */ {(uchar *) "i32.div_s", 0x6d, 0,  0},
+  /* 28 */ {(uchar *) "i32.div_u", 0x6e, 0,  0},
+  /* 29 */ {(uchar *) "i32.rem_s", 0x6f, 0,  0},
+  /* 30 */ {(uchar *) "i32.rem_u", 0x70, 0,  0},
+  /* 31 */ {(uchar *) "i32.and",   0x71, 0,  0},
+  /* 32 */ {(uchar *) "i32.or",    0x72, 0,  0},
+  /* 33 */ {(uchar *) "i32.xor",   0x73, 0,  0},
 };
 
 static opcodez internal_number_to_opcode_z(int32 i)
@@ -1562,10 +1566,15 @@ extern void assemblew_instruction(assembly_instruction *AI)
 
     opco = internal_number_to_opcode_w(AI->internal_number);
 
-    if (execution_never_reaches_here)
-        warning("This statement can never be reached");
+    if (opco.flags & Bl) {
+      if (opco.flags & Rf)
+        execution_never_reaches_here = TRUE; 
+    } else {
+      if (execution_never_reaches_here)
+          warning("This statement can never be reached");
 
-    execution_never_reaches_here = ((opco.flags & Rf) != 0);
+      execution_never_reaches_here = ((opco.flags & Rf) != 0);
+    }
 
     no_operands_given = AI->operand_count;
 

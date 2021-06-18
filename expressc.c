@@ -1630,7 +1630,9 @@ static void generate_code_from(int n, int void_flag)
       if (ET[ET[n].down].right != -1)
         assemblew_load(ET[ET[ET[n].down].right].value);
       assemblew_0(operators[opnum].opcode_number_w);
-      assemblew_1(if_wc, valueless_operand);
+
+      if (!ET[n].to_expression)
+        assemblew_1(if_wc, valueless_operand);
       
 #if 0
       int a = ET[n].true_label, b = ET[n].false_label;
@@ -3148,6 +3150,7 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
 		  break;
 
 		  case TARGET_WASM:
+		  printf("condctx\n");
 		    assemblew_load(AO);
 
 		    if (label < -2)

@@ -658,8 +658,8 @@ static int32 unique_task_id(void)
    longer needed. */
 #define ASSERT_ZCODE() (0)
 #define ASSERT_GLULX() (0)
-#define WABORT printf("WABORT %s (%s:%d)", __func__, __FILE__, __LINE__); exit(1);
-#define WSTUB  printf("WSTUB %s (%s:%d)", __func__, __FILE__, __LINE__);
+#define WABORT printf("WABORT %s (%s:%d)\n", __func__, __FILE__, __LINE__); exit(1);
+#define WSTUB  printf("WSTUB %s (%s:%d)\n", __func__, __FILE__, __LINE__);
 
 #define ReadInt32(ptr)                               \
   (   (((int32)(((uchar *)(ptr))[0])) << 24)         \

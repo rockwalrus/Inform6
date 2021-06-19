@@ -20,7 +20,7 @@ int vivc_flag;                      /*  TRUE if the last code-generated
    static. */
 assembly_operand stack_pointer, temp_var1, temp_var2, temp_var3,
   temp_var4, neg_one_operand, zero_operand, one_operand, two_operand, three_operand,
-  four_operand, valueless_operand;
+  four_operand, valueless_operand, i32_operand;
 
 static void make_operands(void)
 {
@@ -67,7 +67,8 @@ static void make_operands(void)
     INITAOTV(&two_operand, CONSTANT_OT, 2);
     INITAOTV(&three_operand, CONSTANT_OT, 3);
     INITAOTV(&four_operand, CONSTANT_OT, 4);
-    INITAOTV(&valueless_operand, CONSTANT_OT, 0x40); /* 0x40 signifies "void" */
+    INITAOTV(&valueless_operand, BLOCKTYPE_OT, 0x40); /*  "void" */
+    INITAOTV(&i32_operand, BLOCKTYPE_OT, 0x7f);
     break;
   }
 }
@@ -1286,6 +1287,7 @@ static void generate_code_from(int n, int void_flag)
     }
 
     opnum = ET[n].operator_number;
+    printf("opnum %d must_prod %d\n", opnum, ET[n].must_produce_value);
 
     if (opnum == COMMA_OP)
     {   generate_code_from(below, TRUE);
@@ -1295,13 +1297,24 @@ static void generate_code_from(int n, int void_flag)
     }
 
     if ((opnum == LOGAND_OP) || (opnum == LOGOR_OP))
-    {   generate_code_from(below, FALSE);
+    {   
+	printf("Logic opnum %d to_expr %d\n", opnum, ET[n].to_expression);
+
+	if (target_machine == TARGET_WASM) {
+	  assemblew_1(block_wc, ET[n].to_expression ? i32_operand : valueless_operand);
+	  assemblew_1(block_wc, valueless_operand);
+	}
+
+	generate_code_from(below, FALSE);
         generate_code_from(ET[below].right, FALSE);
+
+	//if (target_machine == TARGET_WASM)
+	//  assemblew_0(end_wc);
         goto OperatorGenerated;
     }
 
     if (opnum == -1)
-    {
+   {
         /*  Signifies a SETEQUALS_OP which has already been done */
 
         ET[n].down = -1; return;
@@ -1626,13 +1639,15 @@ static void generate_code_from(int n, int void_flag)
     if (opnum >= ZERO_OP 
       && opnum <= NOTPROVIDES_OP) {
       /*  Conditional terms such as '==': */
+	    printf ("regular condition %d to_expr %d\n", opnum, ET[n].to_expression);
       assemblew_load(ET[ET[n].down].value);
       if (ET[ET[n].down].right != -1)
         assemblew_load(ET[ET[ET[n].down].right].value);
       assemblew_0(operators[opnum].opcode_number_w);
 
-      if (!ET[n].to_expression)
-        assemblew_1(if_wc, valueless_operand);
+      if (!ET[n].to_expression) 
+        //assemblew_1(if_wc, valueless_operand);
+        assemblew_1(br_if_wc, zero_operand);
       
 #if 0
       int a = ET[n].true_label, b = ET[n].false_label;
@@ -3102,9 +3117,36 @@ static void generate_code_from(int n, int void_flag)
 	break;
 
 	case TARGET_WASM:
-	printf("wabt3");
-	//WABORT;
-
+          if (ET[n].to_expression) {
+            if (void_flag) {
+                warning("Logical expression has no side-effects");
+                if (ET[n].true_label != -1)
+                    assemble_label_no(ET[n].true_label);
+                else
+                    assemble_label_no(ET[n].false_label);
+            }
+            else if (ET[n].true_label != -1)
+            {   assemblew_load(zero_operand);
+		assemblew_1(br_wc, one_operand);
+		assemblew_0(end_wc);
+                assemble_label_no(ET[n].true_label);
+                assemblew_load(one_operand);
+                assemble_label_no(next_label++);
+		assemblew_0(end_wc);
+            }
+            else
+            {   assemblew_load(one_operand);
+		assemblew_1(br_wc, one_operand);
+		assemblew_0(end_wc);
+                assemble_label_no(ET[n].false_label);
+                assemblew_load(zero_operand);
+                assemble_label_no(next_label++);
+		assemblew_0(end_wc);
+            }
+            ET[n].value = stack_pointer;
+        }
+	
+	break;
     }
 
     ET[n].down = -1;

@@ -3166,10 +3166,11 @@ static void parse_statement_w(int break_label, int continue_label)
                          //sequence_point_follows = FALSE;
 		 flag2 = execution_never_reaches_here; 
 		 execution_never_reaches_here = 0;
-                         assemblew_0(else_wc);
+                         //assemblew_0(else_wc);
                      }
                  }
                  else put_token_back();
+		 assemblew_0(end_wc);
 
 
                  if (ln >= 0) assemble_label_no(ln);

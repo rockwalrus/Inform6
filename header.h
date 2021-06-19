@@ -990,6 +990,7 @@ typedef struct operator_s
 /*#define GLOBALVAR_OT       11 */  /* Global variable */
 /*#define LOCALVAR_OT        12 */  /* Local variable or sp */
 #define STACK_OT          13 /* Top of the stack */
+#define BLOCKTYPE_OT          14 /* Return type of a WebAssembly block */
 
 
 
@@ -1251,9 +1252,15 @@ typedef struct operator_s
 /* ------------------------------------------------------------------------- */
 
 #define unreachable_wc 0
+#define nop_wc         1
+#define block_wc       2
+#define loop_wc        3
 #define if_wc          4
 #define else_wc        5
 #define end_wc        11
+#define br_wc         12
+#define br_if_wc      13
+#define br_table_wc   14
 #define return_wc     15
 #define call_wc       16
 #define local_get_wc  17 

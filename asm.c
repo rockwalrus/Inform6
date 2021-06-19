@@ -337,6 +337,18 @@ static void print_operand_w(const assembly_operand *o, int annotate)
       printf("<unnamed system function>");
     return;
   case OMITTED_OT: printf("<no value>"); return;
+  case BLOCKTYPE_OT: 
+    switch (o->value) {
+      case 0x40: printf("<void>"); return;
+      case 0x7f: printf("<i32>"); return;
+      case 0x7e: printf("<i64>"); return;
+      case 0x7d: printf("<f32>"); return;
+      case 0x7c: printf("<f64>"); return;
+      case 0x70: printf("<funcref>"); return;
+      case 0x6f: printf("<externref>"); return;
+      default: printf("<type %d>", o->value); return;
+    }
+  
   default: printf("???_"); break; 
   }
   printf("%d", o->value);
@@ -746,20 +758,20 @@ static opcodeg custom_opcode_g;
 
 static opcodew opcodes_table_w[] = {
   /* 00 */ {(uchar *) "unreachable", 0x00, Bl|Rf, 0},
-  /* 01 */ {0, 0, 0, 0},
-  /* 02 */ {0, 0, 0, 0},
-  /* 03 */ {0, 0, 0, 0},
-  /* 04 */ {(uchar *) "if" ,  0x04, 0, 1},
-  /* 05 */ {(uchar *) "else", 0x05, Bl, 0},
+  /* 01 */ {(uchar *) "nop",         0x01, 0,     0},
+  /* 02 */ {(uchar *) "block",       0x02, Bl,    1},
+  /* 03 */ {(uchar *) "loop",        0x03, Bl,    1},
+  /* 04 */ {(uchar *) "if" ,         0x04, 0,     1},
+  /* 05 */ {(uchar *) "else",        0x05, Bl,    0},
   /* 06 */ {0, 0, 0, 0},
   /* 07 */ {0, 0, 0, 0},
   /* 08 */ {0, 0, 0, 0},
   /* 09 */ {0, 0, 0, 0},
   /* 10 */ {0, 0, 0, 0},
   /* 11 */ {(uchar *) "end",       0x0b, Bl, 0},
-  /* 12 */ {0, 0, 0, 0},
-  /* 13 */ {0, 0, 0, 0},
-  /* 14 */ {0, 0, 0, 0},
+  /* 12 */ {(uchar *) "br",        0x0c, Rf, 1},
+  /* 13 */ {(uchar *) "br_if",     0x0d, 0,  1},
+  /* 14 */ {(uchar *) "br_table",  0x0e, Rf, 0},
   /* 15 */ {(uchar *) "return",    0x0f, Rf, 0},
   /* 16 */ {(uchar *) "call",      0x10, 0,  1},
   /* 17 */ {(uchar *) "local.get", 0x20, 0,  1},

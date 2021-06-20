@@ -3290,16 +3290,16 @@ static void compile_symbol_table_routine(void)
             nl = next_label++;
             sequence_point_follows = FALSE;
             assemblez_2_branch(je_zc, AO, AO2, nl, FALSE);
-            AO3.value = array_sizes[j];
+            AO3.value = arrays[j].size;
             AO3.marker = 0;
             assemblez_store(temp_var2, AO3);
-            AO3.value = array_types[j];
-            if (sflags[array_symbols[j]] & (INSF_SFLAG+SYSTEM_SFLAG))
+            AO3.value = arrays[j].type;
+            if (sflags[arrays[j].symbol] & (INSF_SFLAG+SYSTEM_SFLAG))
                 AO3.value = AO3.value + 16;
             AO3.marker = 0;
             assemblez_store(temp_var3, AO3);
-            AO3.value = svals[array_symbols[j]];
-            AO3.marker = (!array_locs[j] ? ARRAY_MV : STATIC_ARRAY_MV);
+            AO3.value = svals[arrays[j].symbol];
+            AO3.marker = (!arrays[j].loc ? ARRAY_MV : STATIC_ARRAY_MV);
             assemblez_1(ret_zc, AO3);
             assemble_label_no(nl);
         }

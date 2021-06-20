@@ -499,7 +499,7 @@ extern void write_the_identifier_names(void)
     }
 
     for (j=0; j<no_arrays; j++)
-    {   i = array_symbols[j];
+    {   i = arrays[j].symbol;
         sprintf(idname_string, "%s", (char *) symbs[i]);
 
         array_name_strings[j]

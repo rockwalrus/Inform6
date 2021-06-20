@@ -35,7 +35,7 @@
 /*   a separate allocation of MAX_STATIC_DATA bytes.                         */
 /* ------------------------------------------------------------------------- */
 uchar   *dynamic_array_area;           /* See above                          */
-static memory_list dynamic_array_area_memlist;
+memory_list dynamic_array_area_memlist;
 int dynamic_array_area_size;           /* Size in bytes                      */
 
 int32   *global_initial_value;
@@ -48,7 +48,7 @@ int no_globals;                        /* Number of global variables used
                                           ten.                               */
 
 uchar   *static_array_area;
-static memory_list static_array_area_memlist;
+memory_list static_array_area_memlist;
 int static_array_area_size;
 
 int no_arrays;

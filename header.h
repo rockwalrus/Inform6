@@ -2208,8 +2208,10 @@ extern void verbs_free_arrays(void);
 extern int no_globals, no_arrays;
 extern int dynamic_array_area_size;
 extern uchar *dynamic_array_area;
+extern memory_list dynamic_array_area_memlist;
 extern int static_array_area_size;
 extern uchar *static_array_area;
+extern memory_list static_array_area_memlist;
 extern int32 *global_initial_value;
 extern arrayinfo *arrays;
 

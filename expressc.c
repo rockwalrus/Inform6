@@ -344,14 +344,22 @@ operator operators[NUM_OPERATORS] =
 /* --- Condition annotater ------------------------------------------------- */
 
 static void annotate_for_conditions(int n, int a, int b)
-{   int i, opnum = ET[n].operator_number;
+{   int i, opnum = ET[n].operator_number, must_branch;
 
+    ET[n].must_branch = FALSE;
     ET[n].label_after = -1;
     ET[n].to_expression = FALSE;
     ET[n].true_label = a;
     ET[n].false_label = b;
+    
 
     if (ET[n].down == -1) return;
+ 
+    if (((ET[n].up != -1) && (ET[ET[n].up].must_branch))
+	|| (operators[opnum].precedence == 2)
+	|| ((operators[opnum].precedence == 3)
+	    && (target_machine != TARGET_WASM)))
+      ET[n].must_branch = TRUE;
 
     if ((operators[opnum].precedence == 2)
         || (operators[opnum].precedence == 3))
@@ -394,9 +402,13 @@ static void annotate_for_conditions(int n, int a, int b)
             return;
     }
 
-    i = ET[n].down;
-    while (i != -1)
-    {   annotate_for_conditions(i, -1, -1); i = ET[i].right; }
+
+    for (i = ET[n].down; i != -1; i = ET[i].right)
+    {   
+	annotate_for_conditions(i, -1, -1); 
+    }
+
+    return;
 }
 
 /* --- Code generator ------------------------------------------------------ */
@@ -1287,7 +1299,7 @@ static void generate_code_from(int n, int void_flag)
     }
 
     opnum = ET[n].operator_number;
-    printf("opnum %d must_prod %d\n", opnum, ET[n].must_produce_value);
+    printf("opnum %d\n", opnum);
 
     if (opnum == COMMA_OP)
     {   generate_code_from(below, TRUE);
@@ -1645,9 +1657,12 @@ static void generate_code_from(int n, int void_flag)
         assemblew_load(ET[ET[ET[n].down].right].value);
       assemblew_0(operators[opnum].opcode_number_w);
 
-      if (!ET[n].to_expression) 
-        //assemblew_1(if_wc, valueless_operand);
-        assemblew_1(br_if_wc, zero_operand);
+      if (!ET[n].to_expression)
+	if (ET[n].must_branch)
+          assemblew_1(br_if_wc, zero_operand);
+        else
+          assemblew_1(if_wc, valueless_operand);
+
       
 #if 0
       int a = ET[n].true_label, b = ET[n].false_label;
@@ -3118,31 +3133,35 @@ static void generate_code_from(int n, int void_flag)
 
 	case TARGET_WASM:
           if (ET[n].to_expression) {
-            if (void_flag) {
+            if (void_flag) 
                 warning("Logical expression has no side-effects");
-                if (ET[n].true_label != -1)
-                    assemble_label_no(ET[n].true_label);
-                else
-                    assemble_label_no(ET[n].false_label);
-            }
-            else if (ET[n].true_label != -1)
-            {   assemblew_load(zero_operand);
-		assemblew_1(br_wc, one_operand);
-		assemblew_0(end_wc);
-                assemble_label_no(ET[n].true_label);
-                assemblew_load(one_operand);
-                assemble_label_no(next_label++);
-		assemblew_0(end_wc);
-            }
-            else
-            {   assemblew_load(one_operand);
-		assemblew_1(br_wc, one_operand);
-		assemblew_0(end_wc);
-                assemble_label_no(ET[n].false_label);
-                assemblew_load(zero_operand);
-                assemble_label_no(next_label++);
-		assemblew_0(end_wc);
-            }
+	    if (ET[n].must_branch) {
+              if (void_flag) {
+                  warning("Logical expression has no side-effects");
+                  if (ET[n].true_label != -1)
+                      assemble_label_no(ET[n].true_label);
+                  else
+                      assemble_label_no(ET[n].false_label);
+              }
+              else if (ET[n].true_label != -1)
+              {   assemblew_load(zero_operand);
+  		assemblew_1(br_wc, one_operand);
+  		assemblew_0(end_wc);
+                  assemble_label_no(ET[n].true_label);
+                  assemblew_load(one_operand);
+                  assemble_label_no(next_label++);
+  		assemblew_0(end_wc);
+              }
+              else
+              {   assemblew_load(one_operand);
+  		assemblew_1(br_wc, one_operand);
+  		assemblew_0(end_wc);
+                  assemble_label_no(ET[n].false_label);
+                  assemblew_load(zero_operand);
+                  assemble_label_no(next_label++);
+  		assemblew_0(end_wc);
+              }
+	    }
             ET[n].value = stack_pointer;
         }
 	

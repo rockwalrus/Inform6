@@ -901,7 +901,7 @@ typedef struct expression_tree_node_s
 
     /*  Attributes synthesised during code generation                        */
 
-    int must_produce_value;      /* e.g. FALSE in a void context             */
+    int must_branch;             /* Whether branching is needed to calculate value (for WebAssembly opcode selection) */
 
     int label_after;             /* -1, or "put this label after code"       */
     int to_expression;           /* TRUE if a condition used as numeric val  */

@@ -1502,6 +1502,7 @@ static void show_node(int n, int depth, int annotate)
         {   printf(" %d|%d ", ET[n].true_label, ET[n].false_label);
             if (ET[n].label_after != -1) printf(" def %d after ",
                 ET[n].label_after);
+            if (ET[n].must_branch) printf(" (must branch) ");
             if (ET[n].to_expression) printf(" con to expr ");
         }
         printf("\n");

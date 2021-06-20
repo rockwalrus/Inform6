@@ -367,7 +367,6 @@ int MAX_OBJECTS;
 int MAX_ACTIONS;
 int MAX_ADJECTIVES;
 int MAX_DICT_ENTRIES;
-int MAX_STATIC_DATA;
 int MAX_PROP_TABLE_SIZE;
 int MAX_ABBREVS;
 int MAX_DYNAMIC_STRINGS;
@@ -475,7 +474,6 @@ static void list_memory_sizes(void)
     if (target_machine != TARGET_ZCODE)
       printf("|  %25s = %-7ld |\n","MAX_STACK_SIZE",
            (long int) MAX_STACK_SIZE);
-    printf("|  %25s = %-7d |\n","MAX_STATIC_DATA",MAX_STATIC_DATA);
     printf("|  %25s = %-7ld |\n","MAX_STATIC_STRINGS",
            (long int) MAX_STATIC_STRINGS);
     printf("|  %25s = %-7d |\n","MAX_SYMBOLS",MAX_SYMBOLS);
@@ -510,7 +508,6 @@ extern void set_memory_sizes(int size_flag)
         MAX_ACTIONS      = 200;
         MAX_ADJECTIVES   = 50;
         MAX_DICT_ENTRIES = 2000;
-        MAX_STATIC_DATA  = 10000;
 
         MAX_PROP_TABLE_SIZE_z = 30000;
         MAX_PROP_TABLE_SIZE_g = 60000;
@@ -557,7 +554,6 @@ extern void set_memory_sizes(int size_flag)
         MAX_ACTIONS      = 200;
         MAX_ADJECTIVES   = 50;
         MAX_DICT_ENTRIES = 1300;
-        MAX_STATIC_DATA  = 10000;
 
         MAX_PROP_TABLE_SIZE_z = 15000;
         MAX_PROP_TABLE_SIZE_g = 30000;
@@ -604,7 +600,6 @@ extern void set_memory_sizes(int size_flag)
         MAX_ACTIONS      = 200;
         MAX_ADJECTIVES   = 50;
         MAX_DICT_ENTRIES = 700;
-        MAX_STATIC_DATA  = 10000;
 
         MAX_PROP_TABLE_SIZE_z = 8000;
         MAX_PROP_TABLE_SIZE_g = 16000;
@@ -794,13 +789,6 @@ static void explain_parameter(char *command)
   object record. It is initialized to zero bytes, and the game is free to \n\
   use it as desired. (This is only meaningful in Glulx, since Z-code \n\
   specifies the object structure.)\n");
-        return;
-    }
-    if (strcmp(command,"MAX_STATIC_DATA")==0)
-    {   printf(
-"  MAX_STATIC_DATA is the size of an array of integers holding initial \n\
-  values for arrays and strings stored as ASCII inside the Z-machine.  It \n\
-  should be at least 1024 but seldom needs much more.\n");
         return;
     }
     if (strcmp(command,"MAX_PROP_TABLE_SIZE")==0)
@@ -1179,7 +1167,7 @@ extern void memory_command(char *command)
             if (strcmp(command,"GLULX_OBJECT_EXT_BYTES")==0)
                 GLULX_OBJECT_EXT_BYTES=j, flag=1;
             if (strcmp(command,"MAX_STATIC_DATA")==0)
-                MAX_STATIC_DATA=j, flag=1;
+                flag=3;
             if (strcmp(command,"MAX_OLDEPTH")==0)
                 flag=2;
             if (strcmp(command,"MAX_ROUTINES")==0)

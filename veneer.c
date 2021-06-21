@@ -3377,8 +3377,8 @@ static void compile_symbol_table_routine(void)
     case TARGET_WASM:
     if (define_INFIX_switch == FALSE)
     {   
+        variable_usage[0] = TRUE;
         variable_usage[1] = TRUE;
-        variable_usage[2] = TRUE;
         assemble_routine_end(FALSE, null_debug_locations);
         veneer_mode = FALSE;
         return;

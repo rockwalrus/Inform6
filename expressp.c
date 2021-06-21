@@ -81,7 +81,17 @@ static int get_next_etoken(void)
     switch(current_token.type)
     {   case LOCAL_VARIABLE_TT:
             current_token.type = VARIABLE_TT;
-            variable_usage[current_token.value] = TRUE;
+
+	    switch (target_machine) {
+	      case TARGET_ZCODE:
+	      case TARGET_GLULX:
+                variable_usage[current_token.value] = TRUE;
+		break;
+
+	      case TARGET_WASM:
+                variable_usage[current_token.value - 1] = TRUE;
+		break;
+	    }
             break;
 
         case DQ_TT:

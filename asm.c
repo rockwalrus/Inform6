@@ -2101,7 +2101,23 @@ extern int32 assemble_routine_header(int no_locals,
 }
 
 void assemble_routine_end(int embedded_flag, debug_locations locations)
-{   int32 i;
+{   int32 i, first_local, last_local;
+
+    switch (target_machine) {
+      case TARGET_ZCODE:
+      case TARGET_GLULX:
+	/* locals are 1-indexed */
+	first_local = 1;
+	last_local = routine_locals;
+        break;
+
+      case TARGET_WASM:
+	/* locals are 0-indexed */
+	first_local = 0;
+	last_local = routine_locals - 1;
+        break;
+    }
+
 
     /* No marker is made in the Z-machine's code area to indicate the        */
     /* end of a routine.  Instead, we simply assemble a return opcode if     */
@@ -2215,7 +2231,7 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
         debug_file_printf
             ("<byte-count>%d</byte-count>", zmachine_pc - routine_start_pc);
         write_debug_locations(locations);
-        for (i = 1; i <= routine_locals; ++i)
+        for (i = first_local; i <= last_local; ++i)
         {   debug_file_printf("<local-variable>");
             debug_file_printf("<identifier>%s</identifier>", variable_name(i));
             switch (target_machine) {
@@ -2249,7 +2265,7 @@ void assemble_routine_end(int embedded_flag, debug_locations locations)
 
     /* Issue warnings about any local variables not used in the routine. */
 
-    for (i=1; i<=routine_locals; i++)
+    for (i = first_local; i<=last_local; i++)
         if (!(variable_usage[i]))
             dbnu_warning("Local variable", variable_name(i),
                 routine_starts_line);

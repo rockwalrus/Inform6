@@ -1657,11 +1657,13 @@ static void generate_code_from(int n, int void_flag)
         assemblew_load(ET[ET[ET[n].down].right].value);
       assemblew_0(operators[opnum].opcode_number_w);
 
-      if (!ET[n].to_expression)
+      if (!ET[n].to_expression) {
 	if (ET[n].must_branch)
           assemblew_1(br_if_wc, zero_operand);
         else
           assemblew_1(if_wc, valueless_operand);
+      }
+
 
       
 #if 0
@@ -3137,7 +3139,6 @@ static void generate_code_from(int n, int void_flag)
                 warning("Logical expression has no side-effects");
 	    if (ET[n].must_branch) {
               if (void_flag) {
-                  warning("Logical expression has no side-effects");
                   if (ET[n].true_label != -1)
                       assemble_label_no(ET[n].true_label);
                   else
@@ -3214,10 +3215,15 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
 		  printf("condctx\n");
 		    assemblew_load(AO);
 
-		    if (label < -2)
-		      assemblew_0(i32_eqz_wc);
+		    //if (label < -2)
+		    //  assemblew_0(i32_eqz_wc);
 
 		    assemblew_1(if_wc, valueless_operand);
+		    if (label < -2) {
+		      assemblew_load(label == -3 ? zero_operand : one_operand);
+		      assemblew_0(return_wc);
+		    }
+		      
 		    break;
                 }
                 AO.type = OMITTED_OT;

@@ -3164,6 +3164,9 @@ printf("if type %d\n", AO.type);
                      {   ebf_error("';'", token_text);
                          put_token_back();
                      }
+            	       
+		     assemblew_load(ln == -3 ? zero_operand : one_operand);
+        	     assemblew_0(return_wc);
                  }
 
                  statements.enabled = TRUE;
@@ -3501,7 +3504,8 @@ printf("if type %d\n", AO.type);
     /*  -------------------------------------------------------------------- */
 
         case RFALSE_CODE:   
-          WABORT; assembleg_1(return_gc, zero_operand); 
+	  assemblew_load(zero_operand); 
+          assemblew_0(return_wc);
           break;
 
     /*  -------------------------------------------------------------------- */
@@ -3509,7 +3513,8 @@ printf("if type %d\n", AO.type);
     /*  -------------------------------------------------------------------- */
 
         case RTRUE_CODE:   
-          WABORT; assembleg_1(return_gc, one_operand); 
+	  assemblew_load(one_operand); 
+          assemblew_0(return_wc);
           break;
 
     /*  -------------------------------------------------------------------- */

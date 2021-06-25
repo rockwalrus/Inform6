@@ -1655,7 +1655,18 @@ static void generate_code_from(int n, int void_flag)
       assemblew_load(ET[ET[n].down].value);
       if (ET[ET[n].down].right != -1)
         assemblew_load(ET[ET[ET[n].down].right].value);
-      assemblew_0(operators[opnum].opcode_number_w);
+      switch(opnum) {
+	case NONZERO_OP:
+	  if (ET[n].to_expression) {
+            assemblew_0(i32_eqz_wc);
+            assemblew_0(i32_eqz_wc);
+	  }
+	  break;
+
+	default:
+	  assemblew_0(operators[opnum].opcode_number_w);
+	  break;
+      }
 
       if (!ET[n].to_expression) {
 	if (ET[n].must_branch)

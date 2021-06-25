@@ -1822,7 +1822,7 @@ extern void assemblew_instruction(assembly_instruction *AI)
 
     OpcodeSyntaxError:
 
-    WSTUB;
+    WABORT;
     //make_opcode_syntax_g(opco);
     error_named("Assembly mistake: syntax is", opcode_syntax_string);
 }

@@ -2682,7 +2682,7 @@ static void parse_statement_g(int break_label, int continue_label)
 }
 
 static void parse_statement_w(int break_label, int continue_label)
-{   int ln, ln2, ln3, ln4, flag, flag2, flag3, onstack;
+{   int ln, ln2, ln3, ln4, flag, flag2, onstack;
     assembly_operand AO, AO2, AO3, AO4;
     debug_location spare_debug_location1, spare_debug_location2;
 
@@ -3118,12 +3118,13 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case IF_CODE:
-                 WSTUB; flag = flag2 = flag3 = FALSE;
+                 flag = flag2 = FALSE;
                  ln2 = 0;
 
                  match_open_bracket();
                  AO = parse_expression(CONDITION_CONTEXT);
                  match_close_bracket();
+
 printf("if type %d\n", AO.type);
 
 
@@ -3140,21 +3141,8 @@ printf("if type %d\n", AO.type);
                  }
 
                  code_generate(AO, CONDITION_CONTEXT, ln);
+		 assemblew_1(if_wc, valueless_operand);
 
-                 /* using if and else opcodes */
-                 switch (AO.type) {
-		   case LOCALVAR_OT:
-		     flag = TRUE;
-		     break;
-
-		   case EXPRESSION_OT:
-		     /* must be run after annotation */
-		     flag = !ET[AO.value].must_branch;
-		     break;
-
-		   default:
-		     flag = FALSE;
-		 }
 
                  if (ln >= 0) parse_code_block(break_label, continue_label, 0);
                  else
@@ -3166,7 +3154,7 @@ printf("if type %d\n", AO.type);
                      }
             	       
 		     assemblew_load(ln == -3 ? zero_operand : one_operand);
-        	     assemblew_0(return_wc);
+		     assemblew_0(return_wc);
                  }
 
                  statements.enabled = TRUE;
@@ -3180,35 +3168,32 @@ printf("if type %d\n", AO.type);
                  }
                  
                  if ((token_type == STATEMENT_TT) && (token_value == ELSE_CODE))
-                 {   flag2 = TRUE;
+                 {   flag = TRUE;
                      //WSTUB if (ln >= 0)
                      {   ln2 = next_label++;
                          //sequence_point_follows = FALSE;
-		 flag3 = execution_never_reaches_here; 
+		 flag2 = execution_never_reaches_here; 
 		 execution_never_reaches_here = 0;
-                         if (flag)
 			   assemblew_0(else_wc);
-			 else
-			   assemblew_1(br_wc, one_operand);
                      }
                  }
                  else put_token_back();
 		 //WSTUB patch out inner block if no else
-		 if (!flag) assemblew_0(end_wc);
 
+                 if (ln >= 0) {
+		   assemble_label_no(ln);
+		 }
 
-                 if (ln >= 0) assemble_label_no(ln);
-
-                 if (flag2)
+                 if (flag)
                  {   parse_code_block(break_label, continue_label, 0);
-		     flag3 &= execution_never_reaches_here;
+		     flag2 &= execution_never_reaches_here;
                      
 		     if (ln >= 0) assemble_label_no(ln2);
                  }
 
 		 assemblew_0(end_wc);
 		 execution_never_reaches_here = flag && flag2;
-		 if (flag && flag2 && flag3) {
+		 if (flag && flag2) {
 			 // TODO: backpatch type compatible with implicit return instead
 			 assemblew_0(unreachable_wc);
 		 }

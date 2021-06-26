@@ -1312,7 +1312,7 @@ static void generate_code_from(int n, int void_flag)
     {   
 	printf("Logic opnum %d to_expr %d\n", opnum, ET[n].to_expression);
 
-	if (target_machine == TARGET_WASM) {
+	if (target_machine == TARGET_WASM && (above == -1 || !ET[above].must_branch)) {
 	  assemblew_1(block_wc, i32_operand);
 	  assemblew_1(block_wc, valueless_operand);
 	}

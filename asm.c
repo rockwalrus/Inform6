@@ -8,6 +8,11 @@
 
 #include "header.h"
 
+typedef struct block_t {
+    int type; /* block_wc, loop_wc, if_wc, or else_wc */
+    int label;
+} block;
+
 uchar *zcode_holding_area;         /* Area holding code yet to be transferred
                                       to either zcode_area or temp file no 1 */
 uchar *zcode_markers;              /* Bytes holding marker values for this
@@ -48,6 +53,9 @@ int uses_acceleration_features;    /* Makes use of Glulx acceleration (3.1.1)
                                       features?                              */
 int uses_float_features;           /* Makes use of Glulx floating-point (3.1.2)
                                       features?                              */
+
+block *blocks_top, *blocks_bottom; /* current WebAssembly blocks */
+memory_stack blocks_stack;
 
 debug_location statement_debug_location;
                                    /* Location of current statement          */
@@ -348,7 +356,9 @@ static void print_operand_w(const assembly_operand *o, int annotate)
       case 0x6f: printf("<externref>"); return;
       default: printf("<type %d>", o->value); return;
     }
-  
+  case BLOCK_OT: 
+    printf("block_%d (L%d)", o->value, blocks_top[-o->value].label); return;
+
   default: printf("???_"); break; 
   }
   printf("%d", o->value);
@@ -3392,16 +3402,6 @@ void assemblew_1(int internal_number, assembly_operand o1)
     assemblew_instruction(&AI);
 }
 
-void assemblew_3(int internal_number, assembly_operand o1,
-  assembly_operand o2, assembly_operand o3)
-{   AI.internal_number = internal_number;
-    AI.operand_count = 3;
-    AI.operand[0] = o1;
-    AI.operand[1] = o2;
-    AI.operand[2] = o3;
-    assemblew_instruction(&AI);
-}
-
 void assemblew_load(assembly_operand o1)
 {
     switch (o1.type) {
@@ -3456,6 +3456,74 @@ void assemblew_store(assembly_operand o1)
     }
 }
 
+void assemblew_begin_block(int label, assembly_operand type) {
+    push_memory_stack(&blocks_stack);
+    blocks_top->type = block_wc;
+    blocks_top->label = label;
+    assemblew_1(block_wc, type);
+}
+
+void assemblew_begin_loop(int label, assembly_operand type) {
+    push_memory_stack(&blocks_stack);
+    blocks_top->type = loop_wc;
+    blocks_top->label = label;
+    assemblew_1(loop_wc, type);
+    assemble_label_no(label);
+}
+
+void assemblew_branch(int internal_number, int label)
+{   
+    int index = -1;
+    block *p;
+    
+    if (!blocks_top) {
+        compiler_error("Tried to branch outside of any block.");
+	return;
+    }
+
+    AI.internal_number = internal_number;
+    AI.operand_count = 1;
+
+    for (p = blocks_top; p >= blocks_bottom; p--) {
+	index++;
+	if (p->label == label)
+	    break;
+    }
+
+    if (p < blocks_bottom) {
+	char buf[80];
+	snprintf(buf, 80, "Tried to branch to L%d, but its block does not exist or code is outside of it.", label);
+        compiler_error(buf);
+	return;
+    }
+	
+
+    INITAOTV(AI.operand, BLOCK_OT, index);
+    assemblew_instruction(&AI);
+}
+
+extern void assemblew_end_loop(int label) {
+    if (!blocks_top || blocks_top->label != label || blocks_top->type != loop_wc) {
+	char buf[80];
+	snprintf(buf, 80, "Tried to end nonexistant loop L%d.", label);
+        compiler_error(buf);
+	return;
+    }
+    assemblew_0(end_wc);
+    pop_memory_stack(&blocks_stack);
+}
+
+extern void assemblew_end_block(int label) {
+    if (!blocks_top || blocks_top->label != label || blocks_top->type != block_wc) {
+	char buf[80];
+	snprintf(buf, 80, "Tried to end nonexistant block L%d.", label);
+        compiler_error(buf);
+	return;
+    }
+    assemblew_0(end_wc);
+    assemble_label_no(blocks_top->label);
+    pop_memory_stack(&blocks_stack);
+}
 
 /* ========================================================================= */
 /*   Parsing and then calling the assembler for @ (assembly language)        */
@@ -3975,6 +4043,9 @@ extern void asm_allocate_arrays(void)
 
     named_routine_symbols
         = my_calloc(sizeof(int32), MAX_SYMBOLS, "named routine symbols");
+
+    if (target_machine == TARGET_WASM)
+	initialise_memory_stack(&blocks_stack, sizeof(block), 5, (void **)&blocks_top, (void **)&blocks_bottom, "WebAssembly block stack");
 }
 
 extern void asm_free_arrays(void)
@@ -3994,6 +4065,9 @@ extern void asm_free_arrays(void)
 
     my_free(&named_routine_symbols, "named routine symbols");
     deallocate_memory_block(&zcode_area);
+    
+    if (target_machine == TARGET_WASM)
+	deallocate_memory_stack(&blocks_stack);
 }
 
 /* ========================================================================= */

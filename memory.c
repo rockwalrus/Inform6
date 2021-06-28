@@ -297,6 +297,65 @@ void ensure_memory_list_available(memory_list *ML, int count)
 }
 
 /* ------------------------------------------------------------------------- */
+/*   A dynamic memory stack based on memory_list. This grows as needed (but never shrinks).       */
+/*                                                                           */
+/*   whatfor must be a static string describing the list. initalloc is       */
+/*   (optionally) the number of items to allocate right away.                */
+/*                                                                           */
+/*   You typically initialise this with headpointer and tailpointer referring to an array of  */
+/*   structs or whatever type you need. Whenever the underlying memory list grows, the  */
+/*   head and tail pointers will be updated to refer to the new data.                */
+/* ------------------------------------------------------------------------- */
+
+void initialise_memory_stack(memory_stack *MS, int itemsize, int initalloc, void **toppointer, void **bottompointer, char *whatfor)
+{
+    initialise_memory_list(&MS->list, itemsize, initalloc, bottompointer, whatfor);
+    MS->no_items = 0;
+    MS->toppointer = toppointer;
+
+    if (MS->toppointer)
+        *(MS->toppointer) = NULL; 
+}
+
+void deallocate_memory_stack(memory_stack *MS)
+{
+    MS->no_items = 0;
+    deallocate_memory_list(&MS->list);
+
+    if (MS->toppointer)
+        *(MS->toppointer) = NULL;
+    MS->toppointer = NULL;
+}
+
+void *push_memory_stack(memory_stack *MS) {
+    void *new_top;
+    int count = ++MS->no_items;
+    ensure_memory_list_available(&MS->list, count);
+
+    new_top = (char *)MS->list.data + (count - 1) * MS->list.itemsize;
+    memset(new_top, 0, MS->list.itemsize);
+    
+    if (MS->toppointer)
+        *(MS->toppointer) = new_top;
+
+    return new_top;
+}
+
+extern void *pop_memory_stack(memory_stack *MS) {
+    void *new_top;
+    int count = --MS->no_items;
+
+    new_top = count > 0 ? MS->list.data + (count - 1) * MS->list.itemsize : NULL;
+    
+    if (MS->toppointer)
+        *(MS->toppointer) = new_top;
+
+    return new_top;
+}
+
+
+
+/* ------------------------------------------------------------------------- */
 /*   Where the memory settings are declared as variables                     */
 /* ------------------------------------------------------------------------- */
 

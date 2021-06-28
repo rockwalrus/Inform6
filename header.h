@@ -895,7 +895,18 @@ typedef struct memory_list_s
     int count;       /* number of items allocated */
 } memory_list;
 
-/* This serves for both Z-code and Glulx instructions. Glulx doesn't use
+/*  A memory stack is a sequential array of items. The list grows as
+    necessary, but it is *not* sparse.
+    This can optionally maintain external pointerd (of any type) which 
+    refer to the top and/or bottom. */
+typedef struct memory_stack_s
+{
+    memory_list list;   /* backing memory */
+    int no_items;       /* number of items currently on stack */
+    void **toppointer;  /* pointer to keep in sync */
+} memory_stack;
+
+/* This serves for all target machine instructions. Glulx and WebAssembly don't use
    the text, store_variable_number, branch_label_number, or branch_flag
    fields. */
 typedef struct assembly_instruction_t
@@ -1008,6 +1019,7 @@ typedef struct operator_s
 /*#define LOCALVAR_OT        12 */  /* Local variable or sp */
 #define STACK_OT          13 /* Top of the stack */
 #define BLOCKTYPE_OT          14 /* Return type of a WebAssembly block */
+#define BLOCK_OT          15 /* lndex of a WebAssembly block (0 is current innermost) */
 
 
 
@@ -2300,11 +2312,14 @@ extern void assembleg_jump(int n);
 
 extern void assemblew_0(int internal_number);
 extern void assemblew_1(int internal_number, assembly_operand o1);
-extern void assemblew_3(int internal_number, assembly_operand o1,
-  assembly_operand o2, assembly_operand o3);
 extern void assemblew_load(assembly_operand o1);
 extern void assemblew_tee(assembly_operand o1);
 extern void assemblew_store(assembly_operand o1);
+extern void assemblew_begin_block(int label, assembly_operand type);
+extern void assemblew_begin_loop(int label, assembly_operand type);
+extern void assemblew_branch(int internal_number, int label);
+extern void assemblew_end_loop(int label);
+extern void assemblew_end_block(int label);
 
 extern void parse_assembly(void);
 
@@ -2694,6 +2709,11 @@ extern void write_byte_to_memory_block(memory_block *MB,
 extern void initialise_memory_list(memory_list *ML, int itemsize, int initalloc, void **extpointer, char *whatfor);
 extern void deallocate_memory_list(memory_list *ML);
 extern void ensure_memory_list_available(memory_list *ML, int count);
+
+extern void initialise_memory_stack(memory_stack *MS, int itemsize, int initalloc, void **toppointer, void **bottompointer, char *whatfor);
+extern void deallocate_memory_stack(memory_stack *MS);
+extern void *push_memory_stack(memory_stack *MS);
+extern void *pop_memory_stack(memory_stack *MS);
 
 /* ------------------------------------------------------------------------- */
 /*   Extern definitions for "objects"                                        */

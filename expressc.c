@@ -20,7 +20,7 @@ int vivc_flag;                      /*  TRUE if the last code-generated
    static. */
 assembly_operand stack_pointer, temp_var1, temp_var2, temp_var3,
   temp_var4, neg_one_operand, zero_operand, one_operand, two_operand, three_operand,
-  four_operand, valueless_operand, i32_operand;
+  four_operand, valueless_operand, void_operand, i32_operand;
 
 static void make_operands(void)
 {
@@ -58,8 +58,8 @@ static void make_operands(void)
 
     INITAOTV(&temp_var1, LOCALVAR_OT, -1); /* Set dynamically in assemble_routine_heater */
     INITAOTV(&temp_var2, LOCALVAR_OT, -1);
-    /*INITAOTV(&temp_var3, LOBALVAR_OT, MAX_LOCAL_VARIABLES+2);
-    INITAOTV(&temp_var4, LOBALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
+    INITAOTV(&temp_var3, LOCALVAR_OT, -1);
+    /*INITAOTV(&temp_var4, LOCALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
 
     INITAOTV(&neg_one_operand, CONSTANT_OT, -1);
     INITAOTV(&zero_operand, CONSTANT_OT, 0);
@@ -67,8 +67,9 @@ static void make_operands(void)
     INITAOTV(&two_operand, CONSTANT_OT, 2);
     INITAOTV(&three_operand, CONSTANT_OT, 3);
     INITAOTV(&four_operand, CONSTANT_OT, 4);
-    INITAOTV(&valueless_operand, BLOCKTYPE_OT, 0x40); /*  "void" */
-    INITAOTV(&i32_operand, BLOCKTYPE_OT, 0x7f);
+    INITAOTV(&valueless_operand, OMITTED_OT, 0);
+    INITAOTV(&void_operand, BLOCKTYPE_OT, 0x40); 
+    INITAOTV(&i32_operand,  BLOCKTYPE_OT, 0x7f);
     break;
   }
 }
@@ -358,7 +359,9 @@ static void annotate_for_conditions(int n, int a, int b)
     if (((ET[n].up != -1) && (ET[ET[n].up].must_branch))
 	|| (operators[opnum].precedence == 2)
 	|| ((operators[opnum].precedence == 3)
-	    && (target_machine != TARGET_WASM)))
+	    && (target_machine != TARGET_WASM
+		    || (ET[ET[n].down].right != -1
+			    && ET[ET[ET[n].down].right].right != -1 ))))
       ET[n].must_branch = TRUE;
 
     if ((operators[opnum].precedence == 2)
@@ -1124,7 +1127,8 @@ static assembly_operand check_nonzero_at_runtime_g(assembly_operand AO1,
 
 static void compile_conditional_g(condclass *cc,
     assembly_operand AO1, assembly_operand AO2, int label, int flag)
-{   assembly_operand AO4; 
+{
+	assembly_operand AO4; 
     int the_zc, error_label = label,
     va_flag = FALSE, va_label = 0;
 
@@ -1253,6 +1257,160 @@ static void compile_conditional_g(condclass *cc,
     if (va_flag) assemble_label_no(va_label);
 }
 
+static void compile_conditional_w(int opnum,
+    assembly_operand AO1, assembly_operand AO2, int label, int to_expression, int must_branch)
+{
+    assemblew_load(AO1);
+    if (AO2.type != OMITTED_OT)
+      assemblew_load(AO2);
+
+    switch(opnum) {
+      case NONZERO_OP:
+	if (to_expression) {
+          assemblew_0(i32_eqz_wc);
+          assemblew_0(i32_eqz_wc);
+	}
+	break;
+
+      default:
+        assemblew_0(operators[opnum].opcode_number_w);
+	break;
+    }
+    if (must_branch && label != -1)
+      assemblew_branch(br_if_wc, label);
+  
+#if 0
+    assembly_operand AO4; 
+    int the_zc, error_label = label,
+    va_flag = FALSE, va_label = 0;
+
+    the_zc = (flag ? cc->posform : cc->negform);
+
+    if (the_zc == -1) {
+      switch ((cc-condclasses)*2 + 500) {
+
+      case HAS_CC:
+        if (runtime_error_checking_switch) {
+          if (flag) 
+            error_label = next_label++;
+          AO1 = check_nonzero_at_runtime(AO1, error_label, HAS_RTE);
+          if (is_constant_ot(AO2.type) && AO2.marker == 0) {
+            if ((AO2.value < 0) || (AO2.value >= NUM_ATTR_BYTES*8)) {
+
+              error("'has'/'hasnt' applied to illegal attribute number");
+            }
+          }
+          else {
+            int pa_label = next_label++, fa_label = next_label++;
+            assembly_operand en_ao, max_ao;
+
+            if ((AO1.type == LOCALVAR_OT) && (AO1.value == 0)) {
+              if ((AO2.type == LOCALVAR_OT) && (AO2.value == 0)) {
+                assembleg_2(stkpeek_gc, zero_operand, temp_var1);
+                assembleg_2(stkpeek_gc, one_operand, temp_var2);
+              }
+              else {
+                assembleg_2(stkpeek_gc, zero_operand, temp_var1);
+                assembleg_store(temp_var2, AO2);
+              }
+            }
+            else {
+              assembleg_store(temp_var1, AO1);
+              if ((AO2.type == LOCALVAR_OT) && (AO2.value == 0)) {
+                assembleg_2(stkpeek_gc, zero_operand, temp_var2);
+              }
+              else {
+                assembleg_store(temp_var2, AO2);
+              }
+            }
+
+            INITAO(&max_ao);
+            max_ao.value = NUM_ATTR_BYTES*8;
+            set_constant_ot(&max_ao);
+            assembleg_2_branch(jlt_gc, temp_var2, zero_operand, fa_label);
+            assembleg_2_branch(jlt_gc, temp_var2, max_ao, pa_label);
+            assemble_label_no(fa_label);
+            INITAO(&en_ao);
+            en_ao.value = 19; /* INVALIDATTR_RTE */
+            set_constant_ot(&en_ao);
+            assembleg_store(stack_pointer, temp_var2);
+            assembleg_store(stack_pointer, temp_var1);
+            assembleg_store(stack_pointer, en_ao);
+            assembleg_3(call_gc, veneer_routine(RT__Err_VR),1
+              three_operand, zero_operand);
+            va_flag = TRUE; 
+            va_label = next_label++;
+            assembleg_jump(va_label);
+            assemble_label_no(pa_label);
+          }
+        }
+        if (is_constant_ot(AO2.type) && AO2.marker == 0) {
+          AO2.value += 8;
+          set_constant_ot(&AO2);
+        }
+        else {
+          INITAO(&AO4);
+          AO4.value = 8;
+          AO4.type = BYTECONSTANT_OT;
+          if ((AO1.type == LOCALVAR_OT) && (AO1.value == 0)) {
+            if ((AO2.type == LOCALVAR_OT) && (AO2.value == 0)) 
+              assembleg_0(stkswap_gc);
+            assembleg_3(add_gc, AO2, AO4, stack_pointer);
+            assembleg_0(stkswap_gc);
+          }
+          else {
+            assembleg_3(add_gc, AO2, AO4, stack_pointer);
+          }
+          AO2 = stack_pointer;
+        }
+        assembleg_3(aloadbit_gc, AO1, AO2, stack_pointer);
+        the_zc = (flag ? jnz_gc : jz_gc);
+        AO1 = stack_pointer;
+        break;
+
+      case IN_CC:
+        if (runtime_error_checking_switch) {
+          if (flag) 
+            error_label = next_label++;
+          AO1 = check_nonzero_at_runtime(AO1, error_label, IN_RTE);
+        }
+        INITAO(&AO4);
+        AO4.value = GOBJFIELD_PARENT();
+        AO4.type = BYTECONSTANT_OT;
+        assembleg_3(aload_gc, AO1, AO4, stack_pointer);
+        AO1 = stack_pointer;
+        the_zc = (flag ? jeq_gc : jne_gc);
+        break;
+
+      case OFCLASS_CC:
+        assembleg_call_2(veneer_routine(OC__Cl_VR), AO1, AO2, stack_pointer);
+        the_zc = (flag ? jnz_gc : jz_gc);
+        AO1 = stack_pointer;
+        break;
+
+      case PROVIDES_CC:
+        assembleg_call_2(veneer_routine(OP__Pr_VR), AO1, AO2, stack_pointer);
+        the_zc = (flag ? jnz_gc : jz_gc);
+        AO1 = stack_pointer;
+        break;
+
+      default:
+        error("condition not yet supported in Glulx");
+        return;
+      }
+    }
+
+    if (the_zc == jnz_gc || the_zc == jz_gc)
+      assembleg_1_branch(the_zc, AO1, label);
+    else
+      assembleg_2_branch(the_zc, AO1, AO2, label);
+    if (error_label != label) assemble_label_no(error_label);
+    if (va_flag) assemble_label_no(va_label);
+#endif
+}
+
+
+
 static void value_in_void_context(assembly_operand AO)
 {
   switch (target_machine) {
@@ -1303,11 +1461,11 @@ static void generate_code_from(int n, int void_flag)
 
     if (target_machine == TARGET_WASM && ET[n].must_branch && (above == -1 || !ET[above].must_branch)) {
       assemblew_begin_block(next_label++, i32_operand);
-      assemblew_begin_block(ET[n].true_label != -1 ? ET[n].true_label : ET[n].false_label, valueless_operand);
+      assemblew_begin_block(ET[n].true_label != -1 ? ET[n].true_label : ET[n].false_label, void_operand);
     }
     
     if (target_machine == TARGET_WASM && ET[n].must_branch && ET[n].label_after != -1) 
-      assemblew_begin_block(ET[n].label_after, valueless_operand);
+      assemblew_begin_block(ET[n].label_after, void_operand);
     
     if (opnum == COMMA_OP)
     {   generate_code_from(below, TRUE);
@@ -1657,28 +1815,60 @@ static void generate_code_from(int n, int void_flag)
       /*  Conditional terms such as '==': */
 
       int true_label = ET[n].true_label, false_label = ET[n].false_label;
+      assembly_operand left_operand;
 
       if (true_label == -1) {true_label = false_label; false_label = -1; opnum = operators[opnum].negation; }
 
       printf ("regular condition %d to_expr %d\n", opnum, ET[n].to_expression);
-      assemblew_load(ET[ET[n].down].value);
-      if (ET[ET[n].down].right != -1)
-        assemblew_load(ET[ET[ET[n].down].right].value);
-      switch(opnum) {
-	case NONZERO_OP:
-	  if (ET[n].to_expression) {
-            assemblew_0(i32_eqz_wc);
-            assemblew_0(i32_eqz_wc);
-	  }
+
+      switch (arity) {
+	case 1:
+	  compile_conditional_w(opnum, ET[ET[n].down].value, valueless_operand, true_label, ET[n].to_expression, ET[n].must_branch);
 	  break;
 
+	case 2:
+	  compile_conditional_w(opnum, ET[ET[n].down].value, ET[ET[ET[n].down].right].value, true_label, ET[n].to_expression, ET[n].must_branch);
+          break;
+
 	default:
-	  assemblew_0(operators[opnum].opcode_number_w);
-	  break;
+          /*  The case of a condition using "or".
+              First: if the condition tests the stack pointer,
+              and it can't always be done in a single test, move
+              the value off the stack and into temporary variable
+              storage.  */
+
+          if (ET[below].value.type == STACK_OT) {
+            assembleg_store(temp_var3, ET[below].value);
+            left_operand = temp_var3;
+          }
+          else {
+            left_operand = ET[below].value;
+          }
+          i = ET[below].right; 
+          arity--;
+
+          /*  "left_operand" now holds the quantity to be tested;
+              "i" holds the right operand reached so far;
+              "arity" the number of right operands.  */
+
+          while (i != -1) {
+            /*  We can compare the left_operand with
+            only one right operand at the time.  There are
+            two cases: it's the last right operand, or it
+            isn't.  */
+
+            /*if ((arity == 1) / * || flag * /)
+              compile_conditional_w(opnum, left_operand,
+            ET[i].value, false_label, ET[n].to_expression, ET[n].must_branch);
+            else */
+              compile_conditional_w(opnum, left_operand,
+            ET[i].value, true_label, ET[n].to_expression, ET[n].must_branch);
+
+            i = ET[i].right; 
+            arity--;
+          }
       }
-      if (ET[n].must_branch)
-	assemblew_branch(br_if_wc, true_label);
-      
+
 #if 0
       int branch_away, branch_other, flag,
         make_jump_away = FALSE, make_branch_label = FALSE;
@@ -1749,44 +1939,6 @@ static void generate_code_from(int n, int void_flag)
             ET[ET[below].right].value, branch_away, flag);
         }
         else {
-          /*  The case of a condition using "or".
-              First: if the condition tests the stack pointer,
-              and it can't always be done in a single test, move
-              the value off the stack and into temporary variable
-              storage.  */
-
-          assembly_operand left_operand;
-          if (((ET[below].value.type == LOCALVAR_OT)
-            && (ET[below].value.value == 0))) {
-            assembleg_store(temp_var1, ET[below].value);
-            left_operand = temp_var1;
-          }
-          else {
-            left_operand = ET[below].value;
-          }
-          i = ET[below].right; 
-          arity--;
-
-          /*  "left_operand" now holds the quantity to be tested;
-              "i" holds the right operand reached so far;
-              "arity" the number of right operands.  */
-
-          while (i != -1) {
-            /*  We can compare the left_operand with
-            only one right operand at the time.  There are
-            two cases: it's the last right operand, or it
-            isn't.  */
-
-            if ((arity == 1) || flag)
-              compile_conditional_g(cc, left_operand,
-            ET[i].value, branch_away, flag);
-            else
-              compile_conditional_g(cc, left_operand,
-            ET[i].value, branch_other, !flag);
-
-            i = ET[i].right; 
-            arity--;
-          }
         }
       }
       

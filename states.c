@@ -3141,7 +3141,7 @@ printf("if type %d\n", AO.type);
                  }
 
                  code_generate(AO, CONDITION_CONTEXT, ln);
-		 assemblew_1(if_wc, valueless_operand);
+		 assemblew_1(if_wc, void_operand);
 
 
                  if (ln >= 0) parse_code_block(break_label, continue_label, 0);

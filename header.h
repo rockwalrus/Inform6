@@ -2320,6 +2320,9 @@ extern void assemblew_begin_loop(int label, assembly_operand type);
 extern void assemblew_branch(int internal_number, int label);
 extern void assemblew_end_loop(int label);
 extern void assemblew_end_block(int label);
+extern void assemblew_begin_if(int label, assembly_operand type);
+extern void assemblew_else(int label);
+extern void assemblew_end_if(int label);
 
 extern void parse_assembly(void);
 

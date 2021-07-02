@@ -3125,8 +3125,6 @@ static void parse_statement_w(int break_label, int continue_label)
                  AO = parse_expression(CONDITION_CONTEXT);
                  match_close_bracket();
 
-printf("if type %d\n", AO.type);
-
 
                  statements.enabled = TRUE;
                  get_next_token();
@@ -3141,7 +3139,7 @@ printf("if type %d\n", AO.type);
                  }
 
                  code_generate(AO, CONDITION_CONTEXT, ln);
-		 assemblew_1(if_wc, void_operand);
+		 assemblew_begin_if(ln, void_operand);
 
 
                  if (ln >= 0) parse_code_block(break_label, continue_label, 0);
@@ -3168,30 +3166,20 @@ printf("if type %d\n", AO.type);
                  }
                  
                  if ((token_type == STATEMENT_TT) && (token_value == ELSE_CODE))
-                 {   flag = TRUE;
-                     //WSTUB if (ln >= 0)
-                     {   ln2 = next_label++;
-                         //sequence_point_follows = FALSE;
-		 flag2 = execution_never_reaches_here; 
-		 execution_never_reaches_here = 0;
-			   assemblew_0(else_wc);
-                     }
+                 {   
+		     flag = TRUE;
+		     flag2 = execution_never_reaches_here; 
+		     execution_never_reaches_here = 0;
+		     assemblew_else(ln);
                  }
                  else put_token_back();
-		 //WSTUB patch out inner block if no else
-
-                 if (ln >= 0) {
-		   assemble_label_no(ln);
-		 }
 
                  if (flag)
                  {   parse_code_block(break_label, continue_label, 0);
 		     flag2 &= execution_never_reaches_here;
-                     
-		     if (ln >= 0) assemble_label_no(ln2);
                  }
 
-		 assemblew_0(end_wc);
+		 assemblew_end_if(ln);
 		 execution_never_reaches_here = flag && flag2;
 		 if (flag && flag2) {
 			 // TODO: backpatch type compatible with implicit return instead

@@ -3528,6 +3528,37 @@ extern void assemblew_end_block(int label) {
     pop_memory_stack(&blocks_stack);
 }
 
+void assemblew_begin_if(int label, assembly_operand type) {
+    push_memory_stack(&blocks_stack);
+    blocks_top->type = if_wc;
+    blocks_top->label = label;
+    assemblew_1(if_wc, type);
+}
+
+extern void assemblew_else(int label) {
+    if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc) {
+	char buf[80];
+	snprintf(buf, 80, "Tried to assemble else for L%d without matching if.", label);
+        compiler_error(buf);
+	return;
+    }
+    assemblew_0(else_wc);
+    blocks_top->type = else_wc;
+}
+
+extern void assemblew_end_if(int label) {
+    if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc && blocks_top->type != else_wc ) {
+	char buf[80];
+	snprintf(buf, 80, "Tried to end nonexistant if/else L%d.", label);
+        compiler_error(buf);
+	return;
+    }
+    assemblew_0(end_wc);
+    assemble_label_no(blocks_top->label);
+    pop_memory_stack(&blocks_stack);
+}
+
+
 /* ========================================================================= */
 /*   Parsing and then calling the assembler for @ (assembly language)        */
 /*   statements                                                              */

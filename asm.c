@@ -1789,24 +1789,33 @@ extern void assemblew_instruction(assembly_instruction *AI)
 
     /* Print assembly trace. */
     if (asm_trace_level > 0) {
-      int i;
-      printf("%5d  +%05lx %3s %-12s ", ErrorReport.line_number,
+      int i, indent, block_op;
+      switch (AI->internal_number) {
+	  case block_wc:
+	  case loop_wc:
+	  case if_wc:
+	  case else_wc:
+	  case end_wc:
+	      block_op = TRUE;
+	      break;
+	  default:
+	      block_op = FALSE;
+	      break;
+      }
+      indent = blocks_stack.no_items;
+      if (block_op)
+	  indent--;
+      indent *= 2;
+      printf("%5d  +%05lx %3s%*s %-12s ", ErrorReport.line_number,
         ((long int) offset),
-        (at_seq_point)?"<*>":"   ", opco.name);
+        (at_seq_point)?"<*>":"   ", indent, "", opco.name);
       for (i=0; i<AI->operand_count; i++) {
-          /*if ((opco.flags & Br) && (i == opco.no-1)) {
-            if (AI->operand[i].value == -4)
-                printf("to rtrue");
-            else if (AI->operand[i].value == -3)
-                printf("to rfalse");
-            else
-                printf("to L%d", AI->operand[i].value);
-            }
-          else {*/
-            print_operand_w(&AI->operand[i], TRUE);
-         /* }*/
+          print_operand_w(&AI->operand[i], TRUE);
           printf(" ");
       }
+
+      if (block_op)
+	  printf("(L%d) ", blocks_top->label);
 
       if (asm_trace_level>=2) {
         for (j=0;
@@ -3478,37 +3487,51 @@ void assemblew_branch(int internal_number, int label)
 {   
     int index = -1;
     block *p;
-    
-    if (!blocks_top) {
-        compiler_error("Tried to branch outside of any block.");
-	return;
+   
+    if (label < -2) {
+        assemblew_load(label == -3 ? zero_operand : one_operand);
+	if (internal_number == br_wc) {
+	    assemblew_0(return_wc);
+	    return;
+	}
+	/* special index for return */
+	index = blocks_stack.no_items;
     }
+    else {
+	if (!blocks_top) {
+            compiler_error("Tried to branch outside of any block.");
+	    return;
+        }
 
+    
+        for (p = blocks_top; p >= blocks_bottom; p--) {
+            index++;
+            if (p->label == label)
+                break;
+        }
+    
+        if (p < blocks_bottom) {
+            char buf[80];
+            snprintf(buf, 80, "Tried to branch to L%d, but its block does not exist or code is outside of it.", label);
+            compiler_error(buf);
+            return;
+        }
+    }
+	
     AI.internal_number = internal_number;
     AI.operand_count = 1;
 
-    for (p = blocks_top; p >= blocks_bottom; p--) {
-	index++;
-	if (p->label == label)
-	    break;
-    }
-
-    if (p < blocks_bottom) {
-	char buf[80];
-	snprintf(buf, 80, "Tried to branch to L%d, but its block does not exist or code is outside of it.", label);
-        compiler_error(buf);
-	return;
-    }
-	
-
     INITAOTV(AI.operand, BLOCK_OT, index);
     assemblew_instruction(&AI);
+
+    //if (label < -2)
+//	assemblew_0(drop_wc);
 }
 
 extern void assemblew_end_loop(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != loop_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end nonexistant loop L%d.", label);
+	snprintf(buf, 80, "Tried to end wrong loop L%d. (Expecting L%d.)", label, blocks_top->label);
         compiler_error(buf);
 	return;
     }
@@ -3519,7 +3542,7 @@ extern void assemblew_end_loop(int label) {
 extern void assemblew_end_block(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != block_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end nonexistant block L%d.", label);
+	snprintf(buf, 80, "Tried to end wrong block L%d. (Expecting L%d.)", label, blocks_top->label);
         compiler_error(buf);
 	return;
     }
@@ -3538,7 +3561,7 @@ void assemblew_begin_if(int label, assembly_operand type) {
 extern void assemblew_else(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to assemble else for L%d without matching if.", label);
+	snprintf(buf, 80, "Tried to assemble else for L%d without matching if. (Expecting L%d.)", label, blocks_top->label);
         compiler_error(buf);
 	return;
     }
@@ -3549,7 +3572,7 @@ extern void assemblew_else(int label) {
 extern void assemblew_end_if(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc && blocks_top->type != else_wc ) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end nonexistant if/else L%d.", label);
+	snprintf(buf, 80, "Tried to end wrong if/else L%d. (Expecting L%d.)", label, blocks_top->label);
         compiler_error(buf);
 	return;
     }

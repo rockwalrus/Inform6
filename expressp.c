@@ -1513,7 +1513,8 @@ static void show_node(int n, int depth, int annotate)
             if (ET[n].label_after != -1) printf(" def %d after ",
                 ET[n].label_after);
             if (ET[n].must_branch) printf(" (must branch) ");
-            if (ET[n].to_expression) printf(" con to expr ");
+            if (ET[n].condition_type == STRICT_EXPRESSION_CT) printf(" con to expr ");
+            if (ET[n].condition_type == LOOSE_EXPRESSION_CT) printf(" con to loose expr ");
         }
         printf("\n");
         show_node(ET[n].down, depth+1, annotate);
@@ -1870,36 +1871,43 @@ extern assembly_operand parse_expression(int context)
 
         Possible contexts are:
 
-            VOID_CONTEXT        the expression is used as a statement, so that
-                                its value will be thrown away and it only
-                                needs to exist for any resulting side-effects
-                                (function calls and assignments)
+            VOID_CONTEXT              the expression is used as a statement, so
+                                      that its value will be thrown away and it
+                                      only needs to exist for any resulting
+                                      side-effects (function calls and 
+				      assignments)
 
-            CONDITION_CONTEXT   the result must be a condition
+            CONDITION_CONTEXT         the result must be a condition
 
-            CONSTANT_CONTEXT    there is required to be a constant result
-                                (so that, for instance, comma becomes illegal)
+            CONSTANT_CONTEXT          there is required to be a constant result
+                                      (so that, for instance, comma becomes
+				      illegal)
 
-            QUANTITY_CONTEXT    the default: a quantity is to be specified
+            QUANTITY_CONTEXT          the default: a quantity is to be 
+	                              specified
 
-            ACTION_Q_CONTEXT    like QUANTITY_CONTEXT, but postfixed brackets
-                                at the top level do not indicate function call:
-                                used for e.g.
-                                   <Insert button (random(pocket1, pocket2))>
+            LOOSE_QUANTITY_CONTEXT    like QUANTITY_CONTEXT, but booleans can 
+	                              be any nonzero value, not just one
 
-            RETURN_Q_CONTEXT    like QUANTITY_CONTEXT, but a single property
-                                name does not generate a warning
+            ACTION_Q_CONTEXT          like QUANTITY_CONTEXT, but postfixed
+                                      brackets at the top level do not indicate 
+                                      function call: used for e.g.
+                                         <Insert button (random(pocket1, pocket2))>
 
-            ASSEMBLY_CONTEXT    a quantity which cannot use the '->' operator
-                                (needed for assembly language to indicate
-                                store destinations)
+            RETURN_Q_CONTEXT          like QUANTITY_CONTEXT, but a single
+                                      property name does not generate a warning
 
-            FORINIT_CONTEXT     a quantity which cannot use an (unbracketed)
-                                '::' operator
+            ASSEMBLY_CONTEXT          a quantity which cannot use the '->'
+                                      operator (needed for assembly language
+                                      to indicate store destinations)
 
-            ARRAY_CONTEXT       like CONSTANT_CONTEXT, but where an unbracketed
-                                minus sign is ambiguous, and brackets always
-                                indicate subexpressions, not function calls
+            FORINIT_CONTEXT           a quantity which cannot use an
+                                      (unbracketed)'::' operator
+
+            ARRAY_CONTEXT             like CONSTANT_CONTEXT, but where an
+                                      unbracketed minus sign is ambiguous, and
+                                      brackets always indicate subexpressions, 
+				      not function calls
 
         Return value: an assembly operand.
 

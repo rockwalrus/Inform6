@@ -3122,7 +3122,7 @@ static void parse_statement_w(int break_label, int continue_label)
                  ln2 = 0;
 
                  match_open_bracket();
-                 AO = parse_expression(CONDITION_CONTEXT);
+                 AO = parse_expression(LOOSE_QUANTITY_CONTEXT);
                  match_close_bracket();
 
 
@@ -3135,14 +3135,15 @@ static void parse_statement_w(int break_label, int continue_label)
                      ln = -3;
                  else
                  {   put_token_back();
-                     ln = next_label++;
+                     ln = -1;
                  }
 
-                 code_generate(AO, CONDITION_CONTEXT, ln);
-		 assemblew_begin_if(ln, void_operand);
+                 AO = code_generate(AO, LOOSE_QUANTITY_CONTEXT, -1);
+		 assemblew_load(AO);
+		 assemblew_begin_if(ln2 = next_label++, void_operand);
 
 
-                 if (ln >= 0) parse_code_block(break_label, continue_label, 0);
+                 if (ln == -1) parse_code_block(break_label, continue_label, 0);
                  else
                  {   get_next_token();
                      if ((token_type != SEP_TT)
@@ -3170,7 +3171,7 @@ static void parse_statement_w(int break_label, int continue_label)
 		     flag = TRUE;
 		     flag2 = execution_never_reaches_here; 
 		     execution_never_reaches_here = 0;
-		     assemblew_else(ln);
+		     assemblew_else(ln2);
                  }
                  else put_token_back();
 
@@ -3179,7 +3180,7 @@ static void parse_statement_w(int break_label, int continue_label)
 		     flag2 &= execution_never_reaches_here;
                  }
 
-		 assemblew_end_if(ln);
+		 assemblew_end_if(ln2);
 		 execution_never_reaches_here = flag && flag2;
 		 if (flag && flag2) {
 			 // TODO: backpatch type compatible with implicit return instead

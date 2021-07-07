@@ -932,10 +932,10 @@ typedef struct expression_tree_node_s
     int must_branch;             /* Whether branching is needed to calculate value (for WebAssembly opcode selection) */
 
     int label_after;             /* -1, or "put this label after code"       */
-    int to_expression;           /* TRUE if a condition used as numeric val  */
+    int condition_type;          /* Condition used as numeric val or as jump  */
     int true_label;              /* On condition "true", jump to this (or keep
                                     going if -1)                             */
-    int false_label;             /* Likewise if the condition is "false".    */
+int false_label;             /* Likewise if the condition is "false".    */
 
 } expression_tree_node;
 
@@ -1022,6 +1022,10 @@ typedef struct operator_s
 #define BLOCK_OT          15 /* lndex of a WebAssembly block (0 is current innermost) */
 
 
+/* How condition operators are used */
+#define JUMP_CT              0 /* Jump to label.                  */
+#define STRICT_EXPRESSION_CT 1 /* One if true, zero if false.     */
+#define LOOSE_EXPRESSION_CT  2 /* Nonzero if true, zero if false. */
 
 
 /* ------------------------------------------------------------------------- */
@@ -1352,15 +1356,16 @@ typedef struct operator_s
 #define DICTWORD_TT  207                    /* literal 'word'                */
 #define ACTION_TT    208                    /* action name                   */
 
-#define VOID_CONTEXT       1
-#define CONDITION_CONTEXT  2
-#define CONSTANT_CONTEXT   3
-#define QUANTITY_CONTEXT   4
-#define ACTION_Q_CONTEXT   5
-#define ASSEMBLY_CONTEXT   6
-#define ARRAY_CONTEXT      7
-#define FORINIT_CONTEXT    8
-#define RETURN_Q_CONTEXT   9
+#define VOID_CONTEXT             1
+#define CONDITION_CONTEXT        2
+#define CONSTANT_CONTEXT         3
+#define QUANTITY_CONTEXT         4
+#define LOOSE_QUANTITY_CONTEXT   5
+#define ACTION_Q_CONTEXT         6
+#define ASSEMBLY_CONTEXT         7
+#define ARRAY_CONTEXT            8
+#define FORINIT_CONTEXT          9
+#define RETURN_Q_CONTEXT         10
 
 #define LOWEST_SYSTEM_VAR_NUMBER 249        /* globals 249 to 255 are used
                                                in compiled code (Z-code 

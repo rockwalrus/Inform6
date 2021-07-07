@@ -344,12 +344,12 @@ operator operators[NUM_OPERATORS] =
 
 /* --- Condition annotater ------------------------------------------------- */
 
-static void annotate_for_conditions(int n, int a, int b)
-{   int i, opnum = ET[n].operator_number, must_branch;
+static void annotate_for_conditions(int n, int a, int b, int type)
+{   int i, opnum = ET[n].operator_number, must_branch = FALSE;
 
     ET[n].must_branch = FALSE;
     ET[n].label_after = -1;
-    ET[n].to_expression = FALSE;
+    ET[n].condition_type = ((operators[opnum].precedence == 2)          || ((operators[opnum].precedence == 3)) && (a == -1) && (b == -1)) ? type : JUMP_CT;
     ET[n].true_label = a;
     ET[n].false_label = b;
     
@@ -362,20 +362,19 @@ static void annotate_for_conditions(int n, int a, int b)
 	    && (target_machine != TARGET_WASM
 		    || (ET[ET[n].down].right != -1
 			    && ET[ET[ET[n].down].right].right != -1 ))))
-      ET[n].must_branch = TRUE;
+      must_branch = ET[n].must_branch = TRUE;
 
-    if ((operators[opnum].precedence == 2)
-        || (operators[opnum].precedence == 3))
+    if (must_branch)
     {   if ((a == -1) && (b == -1))
         {   if (opnum == LOGAND_OP)
             {   b = next_label++;
                 ET[n].false_label = b;
-                ET[n].to_expression = TRUE;
+                ET[n].condition_type = type;
             }
             else
             {   a = next_label++;
                 ET[n].true_label = a;
-                ET[n].to_expression = TRUE;
+                ET[n].condition_type = type;
             }
         }
     }
@@ -387,10 +386,10 @@ static void annotate_for_conditions(int n, int a, int b)
                 ET[n].false_label = b;
                 ET[n].label_after = b;
             }
-            annotate_for_conditions(ET[n].down, -1, b);
+            annotate_for_conditions(ET[n].down, -1, b, type);
             if (b == ET[n].label_after)
-                 annotate_for_conditions(ET[ET[n].down].right, a, -1);
-            else annotate_for_conditions(ET[ET[n].down].right, a, b);
+                 annotate_for_conditions(ET[ET[n].down].right, a, -1, type);
+            else annotate_for_conditions(ET[ET[n].down].right, a, b, type);
             return;
         case LOGOR_OP:
             if (a == -1)
@@ -398,17 +397,17 @@ static void annotate_for_conditions(int n, int a, int b)
                 ET[n].true_label = a;
                 ET[n].label_after = a;
             }
-            annotate_for_conditions(ET[n].down, a, -1);
+            annotate_for_conditions(ET[n].down, a, -1, type);
             if (a == ET[n].label_after)
-                 annotate_for_conditions(ET[ET[n].down].right, -1, b);
-            else annotate_for_conditions(ET[ET[n].down].right, a, b);
+                 annotate_for_conditions(ET[ET[n].down].right, -1, b, type);
+            else annotate_for_conditions(ET[ET[n].down].right, a, b, type);
             return;
     }
 
 
     for (i = ET[n].down; i != -1; i = ET[i].right)
     {   
-	annotate_for_conditions(i, -1, -1); 
+	annotate_for_conditions(i, -1, -1, type); 
     }
 
     return;
@@ -1258,7 +1257,7 @@ static void compile_conditional_g(condclass *cc,
 }
 
 static void compile_conditional_w(int opnum,
-    assembly_operand AO1, assembly_operand AO2, int label, int to_expression, int must_branch)
+    assembly_operand AO1, assembly_operand AO2, int label, int condition_type, int must_branch)
 {
     assemblew_load(AO1);
     if (AO2.type != OMITTED_OT)
@@ -1266,7 +1265,7 @@ static void compile_conditional_w(int opnum,
 
     switch(opnum) {
       case NONZERO_OP:
-	if (to_expression) {
+	if (condition_type == STRICT_EXPRESSION_CT) {
           assemblew_0(i32_eqz_wc);
           assemblew_0(i32_eqz_wc);
 	}
@@ -1276,7 +1275,7 @@ static void compile_conditional_w(int opnum,
         assemblew_0(operators[opnum].opcode_number_w);
 	break;
     }
-    if (must_branch && label != -1)
+    if (label != -1)
       assemblew_branch(br_if_wc, label);
   
 #if 0
@@ -1459,7 +1458,7 @@ static void generate_code_from(int n, int void_flag)
     opnum = ET[n].operator_number;
     printf("opnum %d\n", opnum);
 
-    if (target_machine == TARGET_WASM && ET[n].must_branch && (above == -1 || !ET[above].must_branch)) {
+    if (target_machine == TARGET_WASM && ET[n].must_branch && ET[n].condition_type && (above == -1 || !ET[above].must_branch)) {
       assemblew_begin_block(next_label++, i32_operand);
       assemblew_begin_block(ET[n].true_label != -1 ? ET[n].true_label : ET[n].false_label, void_operand);
     }
@@ -1476,10 +1475,7 @@ static void generate_code_from(int n, int void_flag)
 
     if ((opnum == LOGAND_OP) || (opnum == LOGOR_OP))
     {   
-	printf("Logic opnum %d to_expr %d\n", opnum, ET[n].to_expression);
-
-	if (target_machine == TARGET_WASM && (above == -1 || !ET[above].must_branch)) {
-	}
+	printf("Logic opnum %d cond_type %d\n", opnum, ET[n].condition_type);
 
 	generate_code_from(below, FALSE);
         generate_code_from(ET[below].right, FALSE);
@@ -1817,17 +1813,17 @@ static void generate_code_from(int n, int void_flag)
       int true_label = ET[n].true_label, false_label = ET[n].false_label;
       assembly_operand left_operand;
 
-      if (true_label == -1) {true_label = false_label; false_label = -1; opnum = operators[opnum].negation; }
+      if ((true_label == -1) && (false_label != -1)) {true_label = false_label; false_label = -1; opnum = operators[opnum].negation; }
 
-      printf ("regular condition %d to_expr %d\n", opnum, ET[n].to_expression);
+      printf ("regular condition %d cond_type %d\n", opnum, ET[n].condition_type);
 
       switch (arity) {
 	case 1:
-	  compile_conditional_w(opnum, ET[ET[n].down].value, valueless_operand, true_label, ET[n].to_expression, ET[n].must_branch);
+	  compile_conditional_w(opnum, ET[ET[n].down].value, valueless_operand, true_label, ET[n].condition_type, ET[n].must_branch);
 	  break;
 
 	case 2:
-	  compile_conditional_w(opnum, ET[ET[n].down].value, ET[ET[ET[n].down].right].value, true_label, ET[n].to_expression, ET[n].must_branch);
+	  compile_conditional_w(opnum, ET[ET[n].down].value, ET[ET[ET[n].down].right].value, true_label, ET[n].condition_type, ET[n].must_branch);
           break;
 
 	default:
@@ -1859,10 +1855,10 @@ static void generate_code_from(int n, int void_flag)
 
             /*if ((arity == 1) / * || flag * /)
               compile_conditional_w(opnum, left_operand,
-            ET[i].value, false_label, ET[n].to_expression, ET[n].must_branch);
+            ET[i].value, false_label, ET[n].condition_type, ET[n].must_branch);
             else */
               compile_conditional_w(opnum, left_operand,
-            ET[i].value, true_label, ET[n].to_expression, ET[n].must_branch);
+            ET[i].value, true_label, ET[n].condition_type, ET[n].must_branch);
 
             i = ET[i].right; 
             arity--;
@@ -3234,7 +3230,7 @@ static void generate_code_from(int n, int void_flag)
     switch (target_machine) {
         case TARGET_ZCODE:
 
-        if (ET[n].to_expression)
+        if (ET[n].condition_type)
         {
             if (void_flag) {
                 warning("Logical expression has no side-effects");
@@ -3267,7 +3263,7 @@ static void generate_code_from(int n, int void_flag)
 
         case TARGET_GLULX:
 
-        if (ET[n].to_expression)
+        if (ET[n].condition_type)
         {   
             if (void_flag) {
                 warning("Logical expression has no side-effects");
@@ -3298,9 +3294,9 @@ static void generate_code_from(int n, int void_flag)
 	break;
 
 	case TARGET_WASM:
-          if (ET[n].to_expression && void_flag) 
+          if (ET[n].condition_type && void_flag) 
             warning("Logical expression has no side-effects");
-	  if (ET[n].must_branch) {
+	  if (ET[n].condition_type && ET[n].must_branch) {
 	    if (above == -1 || !ET[above].must_branch) {
               if (void_flag) {
                 if (ET[n].true_label != -1)
@@ -3327,7 +3323,9 @@ static void generate_code_from(int n, int void_flag)
 	    else if (ET[n].label_after != -1)
               assemblew_end_block(ET[n].label_after);
 	  }
-	  if (ET[n].to_expression)
+	  else if (ET[n].label_after != -1)
+            assemblew_end_block(ET[n].label_after);
+	  if (ET[n].condition_type)
             ET[n].value = stack_pointer;
 	
 	  break;
@@ -3338,8 +3336,8 @@ static void generate_code_from(int n, int void_flag)
 
 assembly_operand code_generate(assembly_operand AO, int context, int label)
 {
-    /*  Used in three contexts: VOID_CONTEXT, CONDITION_CONTEXT and
-            QUANTITY_CONTEXT.
+    /*  Used in three contexts: VOID_CONTEXT, CONDITION_CONTEXT
+            QUANTITY_CONTEXT and LOOSE_QUANTITY_CONTEXT.
 
         If CONDITION_CONTEXT, then compile code branching to label number
             "label" if the condition is false: there's no return value.
@@ -3352,7 +3350,23 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
         (probably the stack pointer variable but not necessarily:
          e.g. is would be short constant 2 from the expression "j++, 2")     */
 
+    int condition_type;
     vivc_flag = FALSE;
+
+    switch (context) {
+	case LOOSE_QUANTITY_CONTEXT:
+            condition_type = LOOSE_EXPRESSION_CT;
+            break;
+
+	case CONDITION_CONTEXT:
+            condition_type = JUMP_CT;
+            break;
+
+	default:
+            condition_type = STRICT_EXPRESSION_CT;
+            break;
+    }
+
 
     if (AO.type != EXPRESSION_OT)
     {   switch(context)
@@ -3376,17 +3390,15 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
 		  break;
 
 		  case TARGET_WASM:
-		  printf("condctx\n");
 		    assemblew_load(AO);
 
-		    //if (label < -2)
-		    //  assemblew_0(i32_eqz_wc);
+		    if (label == -1)
+		      break; 
 
-		    //if (label < -2) {
-		    //  assemblew_load(label == -3 ? zero_operand : one_operand);
-		    //  assemblew_0(return_wc);
-		    //}
-		      
+		    if (label >= 0)
+		      assemblew_0(i32_eqz_wc);
+
+		    assemblew_branch(br_if_wc, label);
 		    break;
                 }
                 AO.type = OMITTED_OT;
@@ -3401,10 +3413,10 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
     }
 
     if (context == CONDITION_CONTEXT)
-    {   if (label < -2) annotate_for_conditions(AO.value, label, -1);
-        else annotate_for_conditions(AO.value, -1, label);
+    {   if (label < -2) annotate_for_conditions(AO.value, label, -1, condition_type);
+        else annotate_for_conditions(AO.value, -1, label, condition_type);
     }
-    else annotate_for_conditions(AO.value, -1, -1);
+    else annotate_for_conditions(AO.value, -1, -1, condition_type);
 
     if (expr_trace_level >= 1)
     {   printf("Code generation for expression in ");
@@ -3412,6 +3424,7 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
         {   case VOID_CONTEXT: printf("void"); break;
             case CONDITION_CONTEXT: printf("condition"); break;
             case QUANTITY_CONTEXT: printf("quantity"); break;
+            case LOOSE_QUANTITY_CONTEXT: printf("loose quantity"); break;
             case ASSEMBLY_CONTEXT: printf("assembly"); break;
             case ARRAY_CONTEXT: printf("array initialisation"); break;
             default: printf("* ILLEGAL *"); break;

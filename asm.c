@@ -173,10 +173,7 @@ extern int is_constant_ot(int otval)
       || (otval == ZEROCONSTANT_OT));
 
     case TARGET_WASM:
-    return ((otval == CONSTANT_OT)
-      || (otval == HALFCONSTANT_OT)
-      || (otval == BYTECONSTANT_OT)
-      || (otval == ZEROCONSTANT_OT));
+    return (otval == CONSTANT_OT);
   }
 }
 

@@ -1463,12 +1463,13 @@ the range -32768 to +32767:", folding_error);
 
     emitter_sp = emitter_sp - arity + 1;
 
-    if (target_machine == TARGET_ZCODE) {
+    switch (target_machine) {
+      case TARGET_ZCODE:
         if (x<256)
             emitter_stack[emitter_sp - 1].type = SHORT_CONSTANT_OT;
         else emitter_stack[emitter_sp - 1].type = LONG_CONSTANT_OT;
-    }
-    else {
+        break;
+      case TARGET_GLULX:
         if (x == 0)
             emitter_stack[emitter_sp - 1].type = ZEROCONSTANT_OT;
         else if (x >= -128 && x <= 127) 
@@ -1477,6 +1478,11 @@ the range -32768 to +32767:", folding_error);
             emitter_stack[emitter_sp - 1].type = HALFCONSTANT_OT;
         else
             emitter_stack[emitter_sp - 1].type = CONSTANT_OT;
+	break;
+     case TARGET_WASM:
+        emitter_stack[emitter_sp - 1].type = CONSTANT_OT;
+	break;
+
     }
 
     emitter_stack[emitter_sp - 1].value = x;

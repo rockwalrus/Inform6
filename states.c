@@ -2816,10 +2816,10 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case BREAK_CODE:
-                 WABORT; if (break_label == -1)
+                 if (break_label == -1)
                  error("'break' can only be used in a loop or 'switch' block");
                  else
-                     assembleg_jump(break_label);
+                     assemblew_branch(br_wc, break_label);
                  break;
 
     /*  -------------------------------------------------------------------- */
@@ -2838,14 +2838,18 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case DO_CODE:
-                 WABORT; assemble_label_no(ln = next_label++);
-                 ln2 = next_label++; ln3 = next_label++;
+                 assemblew_begin_loop(ln = next_label++, void_operand);
+                 ln2 = next_label++; 
+		 ln3 = next_label++;
+		 assemblew_begin_block(ln3, void_operand);
+		 assemblew_begin_block(ln2, void_operand);
+		 
                  parse_code_block(ln3, ln2, 0);
                  statements.enabled = TRUE;
                  get_next_token();
                  if ((token_type == STATEMENT_TT)
                      && (token_value == UNTIL_CODE))
-                 {   assemble_label_no(ln2);
+                 {   assemblew_end_block(ln2);
                      match_open_bracket();
                      AO = parse_expression(CONDITION_CONTEXT);
                      match_close_bracket();
@@ -2853,7 +2857,8 @@ static void parse_statement_w(int break_label, int continue_label)
                  }
                  else error("'do' without matching 'until'");
 
-                 assemble_label_no(ln3);
+                 assemblew_end_block(ln3);
+		 assemblew_end_loop(ln);
                  break;
 
     /*  -------------------------------------------------------------------- */
@@ -3615,17 +3620,19 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case WHILE_CODE:
-                 WABORT; assemble_label_no(ln = next_label++);
+                 assemblew_begin_loop(ln = next_label++, void_operand);
+                 assemblew_begin_block(ln2 = next_label++, void_operand);
                  match_open_bracket();
 
                  code_generate(parse_expression(CONDITION_CONTEXT),
-                     CONDITION_CONTEXT, ln2 = next_label++);
-                 match_close_bracket();
+                     CONDITION_CONTEXT, ln2);
+		 match_close_bracket();
 
                  parse_code_block(ln2, ln, 0);
                  sequence_point_follows = FALSE;
-                 assembleg_jump(ln);
-                 assemble_label_no(ln2);
+                 assemblew_branch(br_wc, ln);
+                 assemblew_end_block(ln2);
+                 assemblew_end_loop(ln);
                  return;
 
     /*  -------------------------------------------------------------------- */

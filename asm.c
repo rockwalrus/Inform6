@@ -355,7 +355,11 @@ static void print_operand_w(const assembly_operand *o, int annotate)
       default: printf("<type %d>", o->value); return;
     }
   case BLOCK_OT: 
-    printf("block_%d (L%d)", o->value, blocks_top[-o->value].label); return;
+    if (o->value < blocks_stack.no_items)
+	printf("block_%d (L%d)", o->value, blocks_top[-o->value].label);
+    else
+	printf("block_%d (return)", o->value);
+    return;
 
   default: printf("???_"); break; 
   }
@@ -3521,14 +3525,17 @@ void assemblew_branch(int internal_number, int label)
     INITAOTV(AI.operand, BLOCK_OT, index);
     assemblew_instruction(&AI);
 
-    //if (label < -2)
-//	assemblew_0(drop_wc);
+    if (label < -2)
+	assemblew_0(drop_wc); /* potential return value */
 }
 
 extern void assemblew_end_loop(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != loop_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end wrong loop L%d. (Expecting L%d.)", label, blocks_top->label);
+	if (blocks_top)
+	    snprintf(buf, 80, "Tried to end wrong loop L%d. (Expecting L%d.)", label, blocks_top->label);
+	else
+	    snprintf(buf, 80, "Tried to end wrong loop L%d. (No active blocks.)", label);
         compiler_error(buf);
 	return;
     }
@@ -3539,7 +3546,10 @@ extern void assemblew_end_loop(int label) {
 extern void assemblew_end_block(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != block_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end wrong block L%d. (Expecting L%d.)", label, blocks_top->label);
+	if (blocks_top)
+	    snprintf(buf, 80, "Tried to end wrong block L%d. (Expecting L%d.)", label, blocks_top->label);
+	else
+	    snprintf(buf, 80, "Tried to end wrong block L%d. (No active blocks.)", label);
         compiler_error(buf);
 	return;
     }
@@ -3558,7 +3568,10 @@ void assemblew_begin_if(int label, assembly_operand type) {
 extern void assemblew_else(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to assemble else for L%d without matching if. (Expecting L%d.)", label, blocks_top->label);
+	if (blocks_top)
+	    snprintf(buf, 80, "Tried to assemble else for L%d without matching if. (Expecting L%d.)", label, blocks_top->label);
+	else
+	    snprintf(buf, 80, "Tried to assemble else for L%d without matching if. (No active blocks.)", label);
         compiler_error(buf);
 	return;
     }
@@ -3569,7 +3582,10 @@ extern void assemblew_else(int label) {
 extern void assemblew_end_if(int label) {
     if (!blocks_top || blocks_top->label != label || blocks_top->type != if_wc && blocks_top->type != else_wc ) {
 	char buf[80];
-	snprintf(buf, 80, "Tried to end wrong if/else L%d. (Expecting L%d.)", label, blocks_top->label);
+	if (blocks_top)
+	    snprintf(buf, 80, "Tried to end wrong if/else L%d. (Expecting L%d.)", label, blocks_top->label);
+	else
+	    snprintf(buf, 80, "Tried to end wrong if/else L%d. (No active blocks.)", label);
         compiler_error(buf);
 	return;
     }

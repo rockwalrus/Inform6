@@ -3143,9 +3143,12 @@ static void parse_statement_w(int break_label, int continue_label)
                      ln = -1;
                  }
 
-                 AO = code_generate(AO, LOOSE_QUANTITY_CONTEXT, -1);
-		 assemblew_load(AO);
-		 assemblew_begin_if(ln2 = next_label++, void_operand);
+                 AO = code_generate(AO, ln == -1 ? LOOSE_QUANTITY_CONTEXT : CONDITION_CONTEXT, ln);
+		 
+		 if (ln == -1) {
+		     assemblew_load(AO);
+		     assemblew_begin_if(ln2 = next_label++, void_operand);
+		 }
 
 
                  if (ln == -1) parse_code_block(break_label, continue_label, 0);
@@ -3156,9 +3159,6 @@ static void parse_statement_w(int break_label, int continue_label)
                      {   ebf_error("';'", token_text);
                          put_token_back();
                      }
-            	       
-		     assemblew_load(ln == -3 ? zero_operand : one_operand);
-		     assemblew_0(return_wc);
                  }
 
                  statements.enabled = TRUE;
@@ -3174,10 +3174,14 @@ static void parse_statement_w(int break_label, int continue_label)
                  if ((token_type == STATEMENT_TT) && (token_value == ELSE_CODE))
                  {   
 		     flag = TRUE;
-		     flag2 = execution_never_reaches_here; 
-		     execution_never_reaches_here = 0;
-		     assemblew_else(ln2);
-                 }
+		     if (ln == -1) {
+		         flag2 = execution_never_reaches_here; 
+		         execution_never_reaches_here = 0;
+		         assemblew_else(ln2);
+		     }
+		     else
+		         flag2 = TRUE;
+		 }
                  else put_token_back();
 
                  if (flag)
@@ -3185,9 +3189,10 @@ static void parse_statement_w(int break_label, int continue_label)
 		     flag2 &= execution_never_reaches_here;
                  }
 
-		 assemblew_end_if(ln2);
+		 if (ln == -1)
+		     assemblew_end_if(ln2);
 		 execution_never_reaches_here = flag && flag2;
-		 if (flag && flag2) {
+		 if (ln == -1 && flag && flag2) {
 			 // TODO: backpatch type compatible with implicit return instead
 			 assemblew_0(unreachable_wc);
 		 }

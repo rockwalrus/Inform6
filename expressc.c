@@ -3390,6 +3390,8 @@ assembly_operand code_generate(assembly_operand AO, int context, int label)
 		  break;
 
 		  case TARGET_WASM:
+                    if (label < -2) 
+                       assemblew_load(label == -3 ? zero_operand : one_operand);
 		    assemblew_load(AO);
 
 		    if (label == -1)

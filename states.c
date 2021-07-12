@@ -2827,10 +2827,10 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case CONTINUE_CODE:
-                 WABORT; if (continue_label == -1)
+                 if (continue_label == -1)
                  error("'continue' can only be used in a loop block");
                  else
-                     assembleg_jump(continue_label);
+                     assemblew_branch(br_wc, continue_label);
                  break;
 
     /*  -------------------------------------------------------------------- */

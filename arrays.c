@@ -213,7 +213,7 @@ extern void array_entry(int32 i, int is_static, assembly_operand VAL)
         if (VAL.marker != 0) {
             if (!is_static) {
                 backpatch_zmachine(VAL.marker, DYNAMIC_ARRAY_ZA,
-                    addr - 4*MAX_GLOBAL_VARIABLES);
+                    addr);
             }
             else {
                 /* We can't use backpatch_zmachine() because that only applies to RAM. Instead we add an entry to staticarray_backpatch_table.
@@ -342,11 +342,7 @@ extern void make_global(int array_flag, int name_only)
     
     if (array_flag)
     {   if (!is_static) {
-            if (target_machine == TARGET_ZCODE)
-                assign_symbol(i, dynamic_array_area_size, ARRAY_T);
-            else
-                assign_symbol(i, 
-                    dynamic_array_area_size - 4*MAX_GLOBAL_VARIABLES, ARRAY_T);
+            assign_symbol(i, dynamic_array_area_size, ARRAY_T);
         }
         else {
             assign_symbol(i, static_array_area_size, STATIC_ARRAY_T);
@@ -445,7 +441,7 @@ extern void make_global(int array_flag, int name_only)
         else {
             backpatch_zmachine(ARRAY_MV, GLOBALVAR_ZA, 4*(no_globals-1));
             global_initial_value[no_globals-1]
-                = dynamic_array_area_size - 4*MAX_GLOBAL_VARIABLES;
+                = dynamic_array_area_size;
         }
     }
 
@@ -722,10 +718,7 @@ extern int32 begin_table_array(void)
 
     dynamic_array_area_size += array_entry_size;
 
-    if (target_machine == TARGET_ZCODE)
-        return array_base;
-    else
-        return array_base - WORDSIZE * MAX_GLOBAL_VARIABLES;
+    return array_base;
 }
 
 extern int32 begin_word_array(void)
@@ -737,10 +730,7 @@ extern int32 begin_word_array(void)
     array_base = dynamic_array_area_size;
     array_entry_size = WORDSIZE;
 
-    if (target_machine == TARGET_ZCODE)
-        return array_base;
-    else
-        return array_base - WORDSIZE * MAX_GLOBAL_VARIABLES;
+    return array_base;
 }
 
 /* ========================================================================= */
@@ -756,24 +746,27 @@ extern void init_arrays_vars(void)
 
 extern void arrays_begin_pass(void)
 {
-    int ix;
-    
     no_arrays = 0; 
     if (target_machine == TARGET_ZCODE)
         no_globals=0; 
     else
         no_globals=11;
 
-    /* This initial segment of dynamic_array_area is never used. It's
-       notionally space for the global variables, but that data is
-       kept in the global_initial_value array. Nonetheless, all the
-       compiler math is set up with the idea that arrays start at
-       WORDSIZE * MAX_GLOBAL_VARIABLES, so we need the blank segment.
-    */
-    dynamic_array_area_size = WORDSIZE * MAX_GLOBAL_VARIABLES;
-    ensure_memory_list_available(&dynamic_array_area_memlist, dynamic_array_area_size);
-    for (ix=0; ix<WORDSIZE * MAX_GLOBAL_VARIABLES; ix++)
-        dynamic_array_area[ix] = 0;
+    dynamic_array_area_size = 0;
+
+    if (!glulx_mode) {
+        int ix;
+        /* This initial segment of dynamic_array_area is never used. It's
+           notionally space for the global variables, but that data is
+           kept in the global_initial_value array. Nonetheless, all the
+           Z-compiler math is set up with the idea that arrays start at
+           WORDSIZE * MAX_GLOBAL_VARIABLES, so we need the blank segment.
+        */
+        dynamic_array_area_size = WORDSIZE * MAX_GLOBAL_VARIABLES;
+        ensure_memory_list_available(&dynamic_array_area_memlist, dynamic_array_area_size);
+        for (ix=0; ix<WORDSIZE * MAX_GLOBAL_VARIABLES; ix++)
+            dynamic_array_area[ix] = 0;
+    }
     
     static_array_area_size = 0;
 }

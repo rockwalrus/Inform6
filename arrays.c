@@ -26,9 +26,8 @@
 /*   some years ago, this is also called the "static data area", which is    */
 /*   why the memory setting for its maximum extent is "MAX_STATIC_DATA".     */
 /*                                                                           */
-/*   In Glulx, that 240 is changed to MAX_GLOBAL_VAR_NUMBER, and we take     */
-/*   correspondingly more space for the globals. This *really* ought to be   */
-/*   split into two segments.                                                */
+/*   In Glulx, we don't keep the global variables in dynamic_array_area.     */
+/*   Array data starts at the start.                                         */
 /*                                                                           */
 /*   We can also store arrays (but not globals) into static memory (ROM).    */
 /*   The storage for these goes, unsurprisingly, into static_array_area --   */

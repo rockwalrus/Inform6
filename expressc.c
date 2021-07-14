@@ -823,6 +823,29 @@ static void value_in_void_context_g(assembly_operand AO)
     ebf_error("expression with side-effects", t);
 }
 
+static void value_in_void_context_w(assembly_operand AO)
+{   char *t;
+
+    switch(AO.type)
+    {   case CONSTANT_OT:
+            t = "<constant>";
+            if (AO.marker == SYMBOL_MV)
+                t = (char *) (symbs[AO.value]);
+            break;
+        case GLOBALVAR_OT:
+        case LOCALVAR_OT:
+            t = variable_name(AO.value);
+            break;
+        default:
+            compiler_error("Unable to print value in void context");
+            t = "<expression>";
+            break;
+    }
+    vivc_flag = TRUE;
+
+    ebf_error("expression with side-effects", t);
+}
+
 static void write_result_g(assembly_operand to, assembly_operand from)
 {   if (to.value == from.value && to.type == from.type) return;
     assembleg_store(to, from);
@@ -1422,7 +1445,7 @@ static void value_in_void_context(assembly_operand AO)
     break;
 
     case TARGET_WASM:
-    WABORT;
+    value_in_void_context_w(AO);
   }
 }
 

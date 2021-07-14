@@ -2895,13 +2895,13 @@ static void parse_statement_w(int break_label, int continue_label)
 
         /*  Note that it's legal for any or all of the three sections of a
             'for' specification to be empty.  This 'for' implementation
-            often wastes 3 bytes with a redundant branch rather than keep
+            often wastes bytes with a redundant branch rather than keep
             expression parse trees for long periods (as previous versions
             of Inform did, somewhat crudely by simply storing the textual
             form of a 'for' loop).  It is adequate for now.                  */
 
         case FOR_CODE:
-                 WABORT; match_open_bracket();
+                 match_open_bracket();
                  get_next_token();
 
                  /*  Initialisation code  */
@@ -2922,13 +2922,14 @@ static void parse_statement_w(int break_label, int continue_label)
                      if ((token_type==SEP_TT)&&(token_value == SUPERCLASS_SEP))
                      {   get_next_token();
                          if ((token_type==SEP_TT)&&(token_value == CLOSEB_SEP))
-                         {   assemble_label_no(ln = next_label++);
-                             ln2 = next_label++;
+                         {   assemblew_begin_loop(ln = next_label++, void_operand);
+                             assemblew_begin_block(ln2 = next_label++, void_operand);
                              parse_code_block(ln2, ln, 0);
                              sequence_point_follows = FALSE;
                              if (!execution_never_reaches_here)
-                                 assembleg_jump(ln);
-                             assemble_label_no(ln2);
+                                 assemblew_branch(br_wc, ln);
+                             assemblew_end_block(ln2);
+                             assemblew_end_loop(ln);
                              return;
                          }
                          goto ParseUpdate;
@@ -2953,6 +2954,9 @@ static void parse_statement_w(int break_label, int continue_label)
                      AO2 = parse_expression(VOID_CONTEXT);
                      match_close_bracket();
                      flag = test_for_incdec(AO2);
+		     if (flag)
+			AO3 = ET[ET[AO2.value].down].value;
+		     
                  }
 
                  ln = next_label++;
@@ -2961,8 +2965,10 @@ static void parse_statement_w(int break_label, int continue_label)
 
                  if ((AO2.type == OMITTED_OT) || (flag != 0))
                  {
-                     assemble_label_no(ln);
-                     if (flag==0) assemble_label_no(ln2);
+                     assemblew_begin_loop(ln, void_operand);
+                     assemblew_begin_block(ln3, void_operand);
+                     if (flag!=0) assemblew_begin_block(ln2, void_operand);
+
 
                      /*  The "finished yet?" condition  */
 
@@ -2979,7 +2985,7 @@ static void parse_statement_w(int break_label, int continue_label)
                          of long-term expression storage  */
 
                      sequence_point_follows = FALSE;
-                     assembleg_jump(ln2);
+                     assemblew_branch(br_wc,ln2);
 
                      /*  The "update" part  */
 
@@ -3005,29 +3011,15 @@ static void parse_statement_w(int break_label, int continue_label)
                          of the loop block, so "continue" goes there  */
 
                      parse_code_block(ln3, ln2, 0);
-                     assemble_label_no(ln2);
+                     assemblew_end_block(ln2);
 
                      sequence_point_follows = TRUE;
                      statement_debug_location = spare_debug_location2;
-                     if (flag > 0)
-                     {   INITAO(&AO3);
-                         AO3.value = flag;
-                         if (AO3.value >= MAX_LOCAL_VARIABLES)
-                           AO3.type = GLOBALVAR_OT;
-                         else
-                           AO3.type = LOCALVAR_OT;
-                         assembleg_3(add_gc, AO3, one_operand, AO3);
-                     }
-                     else
-                     {   INITAO(&AO3);
-                         AO3.value = -flag;
-                         if (AO3.value >= MAX_LOCAL_VARIABLES)
-                           AO3.type = GLOBALVAR_OT;
-                         else
-                           AO3.type = LOCALVAR_OT;
-                         assembleg_3(sub_gc, AO3, one_operand, AO3);
-                     }
-                     assembleg_jump(ln);
+                     assemblew_load(AO3);
+		     assemblew_load(one_operand);
+		     assemblew_0(flag > 0 ? i32_add_wc : i32_sub_wc);
+                     assemblew_store(AO3);
+		     assemblew_branch(br_wc, ln);
                  }
                  else
                  {
@@ -3037,11 +3029,12 @@ static void parse_statement_w(int break_label, int continue_label)
                      parse_code_block(ln3, ln, 0);
                      if (!execution_never_reaches_here)
                      {   sequence_point_follows = FALSE;
-                         assembleg_jump(ln);
+                         assemblew_branch(br_wc, ln);
                      }
                  }
 
-                 assemble_label_no(ln3);
+                 assemblew_end_block(ln3);
+                 assemblew_end_loop(ln);
                  return;
 
     /*  -------------------------------------------------------------------- */

@@ -2139,7 +2139,11 @@ extern int test_for_incdec(assembly_operand AO)
     if (s==0) return 0;
     if (ET[ET[AO.value].down].down != -1) return 0;
     if (!is_variable_ot(ET[ET[AO.value].down].value.type)) return 0;
-    return s*(ET[ET[AO.value].down].value.value);
+
+    if (target_machine == TARGET_WASM)
+        return s;
+    else
+        return s*(ET[ET[AO.value].down].value.value);
 }
 
 /* ========================================================================= */

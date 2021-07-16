@@ -2205,6 +2205,8 @@ extern void verbs_free_arrays(void);
 /*   Extern definitions for "arrays"                                         */
 /* ------------------------------------------------------------------------- */
 
+#define MAX_ZCODE_GLOBAL_VARS (240)
+
 extern int no_globals, no_arrays;
 extern int dynamic_array_area_size;
 extern uchar *dynamic_array_area;

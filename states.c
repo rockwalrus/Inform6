@@ -2985,20 +2985,22 @@ static void parse_statement_w(int break_label, int continue_label)
                          of long-term expression storage  */
 
                      sequence_point_follows = FALSE;
-                     assemblew_branch(br_wc,ln2);
+		     assemblew_load(zero_operand);
 
                      /*  The "update" part  */
 
-                     assemble_label_no(ln);
+                     assemblew_begin_loop(ln, p1rv_operand);
+		     assemblew_begin_if(ln2, void_operand);
                      sequence_point_follows = TRUE;
                      statement_debug_location = spare_debug_location2;
                      code_generate(AO2, VOID_CONTEXT, -1);
 
-                     assemble_label_no(ln2);
+                     assemblew_end_if(ln2);
 
                      /*  The "finished yet?" condition  */
 
-                     if (AO.type != OMITTED_OT)
+                     assemblew_begin_block(ln3, void_operand);
+		     if (AO.type != OMITTED_OT)
                      {   sequence_point_follows = TRUE;
                          statement_debug_location = spare_debug_location1;
                          code_generate(AO, CONDITION_CONTEXT, ln3);

@@ -20,7 +20,7 @@ int vivc_flag;                      /*  TRUE if the last code-generated
    static. */
 assembly_operand stack_pointer, temp_var1, temp_var2, temp_var3,
   temp_var4, neg_one_operand, zero_operand, one_operand, two_operand, three_operand,
-  four_operand, valueless_operand, void_operand, i32_operand;
+  four_operand, valueless_operand, void_operand, i32_operand, p1rv_operand;
 
 static void make_operands(void)
 {
@@ -70,6 +70,7 @@ static void make_operands(void)
     INITAOTV(&valueless_operand, OMITTED_OT, 0);
     INITAOTV(&void_operand, BLOCKTYPE_OT, 0x40); 
     INITAOTV(&i32_operand,  BLOCKTYPE_OT, 0x7f);
+    INITAOTV(&p1rv_operand,  BLOCKTYPE_OT, 2);
     break;
   }
 }

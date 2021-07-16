@@ -1415,7 +1415,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     /* Type section */
     start_section_w(0x01);
 
-    sf_put(0x02);
+    sf_put(0x03);
 
     sf_put(0x60);
     sf_put(0x00);
@@ -1428,6 +1428,11 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0x7f);
     sf_put(0x01);
     sf_put(0x7f);
+
+    sf_put(0x60);
+    sf_put(0x01);
+    sf_put(0x7f);
+    sf_put(0x00);
 
     end_section_w();
 

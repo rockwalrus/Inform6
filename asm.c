@@ -11,6 +11,7 @@
 typedef struct block_t {
     int type; /* block_wc, loop_wc, if_wc, or else_wc */
     int label;
+    int push_true; /* Push TRUE before branching? */
 } block;
 
 uchar *zcode_holding_area;         /* Area holding code yet to be transferred
@@ -3474,6 +3475,7 @@ void assemblew_begin_block(int label, assembly_operand type) {
     push_memory_stack(&blocks_stack);
     blocks_top->type = block_wc;
     blocks_top->label = label;
+    blocks_top->push_true = type.value == p1rv_operand.value;
     assemblew_1(block_wc, type);
 }
 
@@ -3481,6 +3483,7 @@ void assemblew_begin_loop(int label, assembly_operand type) {
     push_memory_stack(&blocks_stack);
     blocks_top->type = loop_wc;
     blocks_top->label = label;
+    blocks_top->push_true = type.value == p1rv_operand.value;
     assemblew_1(loop_wc, type);
     assemble_label_no(label);
 }
@@ -3509,8 +3512,11 @@ void assemblew_branch(int internal_number, int label)
     
         for (p = blocks_top; p >= blocks_bottom; p--) {
             index++;
-            if (p->label == label)
+            if (p->label == label) {
+		if (p->push_true)
+		    assemblew_load(one_operand);
                 break;
+	    }
         }
     
         if (p < blocks_bottom) {
@@ -3564,6 +3570,7 @@ void assemblew_begin_if(int label, assembly_operand type) {
     push_memory_stack(&blocks_stack);
     blocks_top->type = if_wc;
     blocks_top->label = label;
+    blocks_top->push_true = type.value == p1rv_operand.value;
     assemblew_1(if_wc, type);
 }
 

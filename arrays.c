@@ -364,11 +364,10 @@ extern void make_global(int array_flag, int name_only)
             return;
         }
         
-        //### variable_tokens_memlist too
-
-        variable_tokens[MAX_LOCAL_VARIABLES+no_globals] = i;
+        ensure_memory_list_available(&variables_memlist, MAX_LOCAL_VARIABLES+no_globals+1);
+        variables[MAX_LOCAL_VARIABLES+no_globals].token = i;
+        variables[MAX_LOCAL_VARIABLES+no_globals].usage = FALSE;
         assign_symbol(i, MAX_LOCAL_VARIABLES+no_globals, GLOBAL_VARIABLE_T);
-        variable_tokens[svals[i]] = i;
 
         if (name_only) {
             import_symbol(i);
@@ -747,8 +746,9 @@ extern int32 begin_word_array(void)
 extern void init_arrays_vars(void)
 {   dynamic_array_area = NULL;
     static_array_area = NULL;
-    global_initial_value = NULL;
     arrays = NULL;
+    global_initial_value = NULL;
+    variables = NULL;
 }
 
 extern void arrays_begin_pass(void)

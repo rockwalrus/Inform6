@@ -52,8 +52,6 @@ static int comma_allowed, arrow_allowed, superclass_allowed,
            array_init_ambiguity, action_ambiguity,
            etoken_count, inserting_token, bracket_level;
 
-extern int *variable_usage;
-
 /* Must be at least as many as keyword_group system_functions (currently 12) */
 int system_function_usage[32];
 
@@ -85,11 +83,11 @@ static int get_next_etoken(void)
 	    switch (target_machine) {
 	      case TARGET_ZCODE:
 	      case TARGET_GLULX:
-                variable_usage[current_token.value] = TRUE;
+                variables[current_token.value].usage = TRUE;
 		break;
 
 	      case TARGET_WASM:
-                variable_usage[current_token.value - 1] = TRUE;
+                variables[current_token.value - 1].usage = TRUE;
 		break;
 	    }
             break;
@@ -206,7 +204,7 @@ but not used as a value:", unicode);
 
             if (stypes[symbol] == GLOBAL_VARIABLE_T)
             {   current_token.type = VARIABLE_TT;
-                variable_usage[current_token.value] = TRUE;
+                variables[current_token.value].usage = TRUE;
             }
             break;
 

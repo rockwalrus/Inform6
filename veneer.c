@@ -3254,8 +3254,8 @@ static void compile_symbol_table_routine(void)
 
     if (define_INFIX_switch == FALSE)
     {   assemblez_0(rfalse_zc);
-        variable_usage[1] = TRUE;
-        variable_usage[2] = TRUE;
+        variables[1].usage = TRUE;
+        variables[2].usage = TRUE;
         assemble_routine_end(FALSE, null_debug_locations);
         veneer_mode = FALSE;
         return;
@@ -3355,8 +3355,8 @@ static void compile_symbol_table_routine(void)
 
     sequence_point_follows = FALSE;
     assemblez_0(rfalse_zc);
-    variable_usage[1] = TRUE;
-    variable_usage[2] = TRUE;
+    variables[1].usage = TRUE;
+    variables[2].usage = TRUE;
     assemble_routine_end(FALSE, null_debug_locations);
     veneer_mode = FALSE;
     break;
@@ -3364,8 +3364,8 @@ static void compile_symbol_table_routine(void)
     case TARGET_GLULX:
     if (define_INFIX_switch == FALSE)
     {   assembleg_1(return_gc, zero_operand);
-        variable_usage[1] = TRUE;
-        variable_usage[2] = TRUE;
+        variables[1].usage = TRUE;
+        variables[2].usage = TRUE;
         assemble_routine_end(FALSE, null_debug_locations);
         veneer_mode = FALSE;
         return;
@@ -3377,8 +3377,8 @@ static void compile_symbol_table_routine(void)
     case TARGET_WASM:
     if (define_INFIX_switch == FALSE)
     {   
-        variable_usage[0] = TRUE;
-        variable_usage[1] = TRUE;
+        variables[0].usage = TRUE;
+        variables[1].usage = TRUE;
         assemble_routine_end(FALSE, null_debug_locations);
         veneer_mode = FALSE;
         return;

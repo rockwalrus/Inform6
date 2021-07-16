@@ -387,7 +387,6 @@ int32 MAX_INDIV_PROP_TABLE_SIZE;
 int32 MAX_OBJ_PROP_TABLE_SIZE;
 int MAX_OBJ_PROP_COUNT;
 int MAX_LOCAL_VARIABLES;
-int MAX_GLOBAL_VARIABLES;
 int DICT_WORD_SIZE; /* number of characters in a dict word */
 int DICT_CHAR_SIZE; /* (glulx) 1 for one-byte chars, 4 for Unicode chars */
 int DICT_WORD_BYTES; /* DICT_WORD_SIZE*DICT_CHAR_SIZE */
@@ -410,7 +409,6 @@ int TRANSCRIPT_FORMAT; /* 0: classic, 1: prefixed */
    And an explicit value set by the user should override both defaults. */
 static int32 MAX_ZCODE_SIZE_z, MAX_ZCODE_SIZE_g;
 static int MAX_PROP_TABLE_SIZE_z, MAX_PROP_TABLE_SIZE_g;
-static int MAX_GLOBAL_VARIABLES_z, MAX_GLOBAL_VARIABLES_g;
 static int MAX_LOCAL_VARIABLES_z, MAX_LOCAL_VARIABLES_g;
 static int DICT_WORD_SIZE_z, DICT_WORD_SIZE_g;
 static int NUM_ATTR_BYTES_z, NUM_ATTR_BYTES_g;
@@ -437,7 +435,6 @@ static void list_memory_sizes(void)
       printf("|  %25s = %-7d |\n","DICT_CHAR_SIZE",DICT_CHAR_SIZE);
     printf("|  %25s = %-7d |\n","MAX_DYNAMIC_STRINGS",MAX_DYNAMIC_STRINGS);
     printf("|  %25s = %-7d |\n","MAX_EXPRESSION_NODES",MAX_EXPRESSION_NODES);
-    printf("|  %25s = %-7d |\n","MAX_GLOBAL_VARIABLES",MAX_GLOBAL_VARIABLES);
     printf("|  %25s = %-7d |\n","HASH_TAB_SIZE",HASH_TAB_SIZE);
     if (target_machine == TARGET_ZCODE)
       printf("|  %25s = %-7d |\n","ZCODE_HEADER_EXT_WORDS",ZCODE_HEADER_EXT_WORDS);
@@ -535,9 +532,6 @@ extern void set_memory_sizes(int size_flag)
 
         MAX_INDIV_PROP_TABLE_SIZE = 15000;
 
-        MAX_GLOBAL_VARIABLES_z = 240;
-        MAX_GLOBAL_VARIABLES_g = 512;
-        
         ALLOC_CHUNK_SIZE_z = 8192;
         ALLOC_CHUNK_SIZE_g = 32768;
     }
@@ -581,9 +575,6 @@ extern void set_memory_sizes(int size_flag)
 
         MAX_INDIV_PROP_TABLE_SIZE = 10000;
 
-        MAX_GLOBAL_VARIABLES_z = 240;
-        MAX_GLOBAL_VARIABLES_g = 512;
-        
         ALLOC_CHUNK_SIZE_z = 8192;
         ALLOC_CHUNK_SIZE_g = 16384;
     }
@@ -627,9 +618,6 @@ extern void set_memory_sizes(int size_flag)
 
         MAX_INDIV_PROP_TABLE_SIZE = 5000;
 
-        MAX_GLOBAL_VARIABLES_z = 240;
-        MAX_GLOBAL_VARIABLES_g = 256;
-        
         ALLOC_CHUNK_SIZE_z = 8192;
         ALLOC_CHUNK_SIZE_g = 8192;
     }
@@ -673,7 +661,6 @@ extern void adjust_memory_sizes()
   if (target_machine == TARGET_ZCODE) {
     MAX_ZCODE_SIZE = MAX_ZCODE_SIZE_z;
     MAX_PROP_TABLE_SIZE = MAX_PROP_TABLE_SIZE_z;
-    MAX_GLOBAL_VARIABLES = MAX_GLOBAL_VARIABLES_z;
     MAX_LOCAL_VARIABLES = MAX_LOCAL_VARIABLES_z;
     DICT_WORD_SIZE = DICT_WORD_SIZE_z;
     NUM_ATTR_BYTES = NUM_ATTR_BYTES_z;
@@ -684,7 +671,6 @@ extern void adjust_memory_sizes()
   else {
     MAX_ZCODE_SIZE = MAX_ZCODE_SIZE_g;
     MAX_PROP_TABLE_SIZE = MAX_PROP_TABLE_SIZE_g;
-    MAX_GLOBAL_VARIABLES = MAX_GLOBAL_VARIABLES_g;
     MAX_LOCAL_VARIABLES = MAX_LOCAL_VARIABLES_g;
     DICT_WORD_SIZE = DICT_WORD_SIZE_g;
     NUM_ATTR_BYTES = NUM_ATTR_BYTES_g;
@@ -933,6 +919,7 @@ static void explain_parameter(char *command)
   arguments) allowed in a procedure. (Glulx only)\n");
         return;
     }
+<<<<<<< HEAD
     if (strcmp(command,"MAX_GLOBAL_VARIABLES")==0)
     {   printf(
 "  MAX_GLOBAL_VARIABLES is the number of global variables allowed in the \n\
@@ -961,6 +948,8 @@ static void explain_parameter(char *command)
   for various structures.\n");
         return;
     }
+=======
+>>>>>>> cc1dfc0 (Remove MAX_GLOBAL_VARIABLES entirely.)
     if (strcmp(command,"MAX_STACK_SIZE")==0)
     {
         printf(
@@ -1240,8 +1229,7 @@ extern void memory_command(char *command)
                 MAX_LOCAL_VARIABLES_g=MAX_LOCAL_VARIABLES_z=j;
             }
             if (strcmp(command,"MAX_GLOBAL_VARIABLES")==0)
-            {   MAX_GLOBAL_VARIABLES=j, flag=1;
-                MAX_GLOBAL_VARIABLES_g=MAX_GLOBAL_VARIABLES_z=j;
+            {   flag=3;
             }
             if (strcmp(command,"ALLOC_CHUNK_SIZE")==0)
             {   ALLOC_CHUNK_SIZE=j, flag=1;

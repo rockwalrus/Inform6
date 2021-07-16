@@ -754,7 +754,7 @@ extern void arrays_begin_pass(void)
 
     dynamic_array_area_size = 0;
 
-    if (!glulx_mode) {
+    if (target_machine == TARGET_ZCODE) {
         int ix;
         /* This initial segment of dynamic_array_area is never used. It's
            notionally space for the global variables, but that data is

@@ -1677,10 +1677,10 @@ Out:   %s %s %d.%c%c%c%c%c%c (%ld%sK long):\n",
 
             printf("\
 %6d classes (maximum %3d)        %6d objects (maximum %3d)\n\
-%6d global vars (maximum %3d)    %6d variable/array space\n",
+%6d global vars                  %6d variable/array space\n",
                  no_classes, MAX_CLASSES,
                  no_objects, MAX_OBJECTS,
-                 no_globals, MAX_GLOBAL_VARIABLES,
+                 no_globals,
                  dynamic_array_area_size);
 
             printf(
@@ -2348,10 +2348,10 @@ Out:   %s %s %d.%c%c%c%c%c%c (%ld%sK long):\n",
 
             printf("\
 %6d classes (maximum %3d)        %6d objects (maximum %3d)\n\
-%6d global vars (maximum %3d)    %6d variable/array space\n",
+%6d global vars                  %6d variable/array space\n",
                  no_classes, MAX_CLASSES,
                  no_objects, MAX_OBJECTS,
-                 no_globals, MAX_GLOBAL_VARIABLES,
+                 no_globals,
                  dynamic_array_area_size);
 
             printf(

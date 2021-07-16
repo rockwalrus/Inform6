@@ -2418,6 +2418,7 @@ extern int  parse_given_directive(int internal_flag);
 /*   Extern definitions for "errors"                                         */
 /* ------------------------------------------------------------------------- */
 
+#define FORERRORS_SIZE (512)
 extern char *forerrors_buff;
 extern int  forerrors_pointer;
 extern int  no_errors, no_warnings, no_suppressed_warnings,

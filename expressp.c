@@ -1124,13 +1124,13 @@ static void remove_bracket_layer_from_emitter_stack()
     --emitter_bracket_counts[emitter_sp-2];
 }
 
-static void emit_token(token_data t)
+static void emit_token(const token_data *t)
 {   assembly_operand o1, o2; int arity, stack_size, i;
     int op_node_number, operand_node_number, previous_node_number;
     int32 x = 0;
 
     if (expr_trace_level >= 2)
-    {   printf("Output: %-19s%21s ", t.text, "");
+    {   printf("Output: %-19s%21s ", t->text, "");
         for (i=0; i<emitter_sp; i++)
         {   print_operand(&emitter_stack[i], FALSE); printf(" ");
             if (emitter_markers[i] == FUNCTION_VALUE_MARKER) printf(":FUNCTION ");
@@ -1141,7 +1141,7 @@ static void emit_token(token_data t)
         printf("\n");
     }
 
-    if (t.type == SUBOPEN_TT) return;
+    if (t->type == SUBOPEN_TT) return;
 
     stack_size = 0;
     while ((stack_size < emitter_sp) &&
@@ -1149,7 +1149,7 @@ static void emit_token(token_data t)
            !emitter_bracket_counts[emitter_sp-stack_size-1])
         stack_size++;
 
-    if (t.type == SUBCLOSE_TT)
+    if (t->type == SUBCLOSE_TT)
     {   if (stack_size < emitter_sp && emitter_bracket_counts[emitter_sp-stack_size-1])
         {   if (stack_size == 0)
             {   error("No expression between brackets '(' and ')'");
@@ -1167,14 +1167,14 @@ static void emit_token(token_data t)
         return;
     }
 
-    if (t.type != OP_TT)
+    if (t->type != OP_TT)
     {   emitter_markers[emitter_sp] = 0;
         emitter_bracket_counts[emitter_sp] = 0;
 
         if (emitter_sp == MAX_EXPRESSION_NODES)
             memoryerror("MAX_EXPRESSION_NODES", MAX_EXPRESSION_NODES);
-        if (!evaluate_term(&t, &(emitter_stack[emitter_sp++])))
-            compiler_error_named("Emit token error:", t.text);
+        if (!evaluate_term(t, &(emitter_stack[emitter_sp++])))
+            compiler_error_named("Emit token error:", t->text);
         return;
     }
 
@@ -1182,7 +1182,7 @@ static void emit_token(token_data t)
        call, since we ignore spurious leading commas in function argument lists)
        with no intervening brackets.  Function calls are variadic, so we don't
        apply argument-separating commas. */
-    if (t.value == COMMA_OP &&
+    if (t->value == COMMA_OP &&
         stack_size < emitter_sp &&
         (emitter_markers[emitter_sp-stack_size-1] == ARGUMENT_VALUE_MARKER ||
          emitter_markers[emitter_sp-stack_size-1] == FUNCTION_VALUE_MARKER) &&
@@ -1192,11 +1192,11 @@ static void emit_token(token_data t)
         return;
     }
 
-    if (t.value == OR_OP)
+    if (t->value == OR_OP)
         return;
 
     arity = 1;
-    if (t.value == FCALL_OP)
+    if (t->value == FCALL_OP)
     {   if (expr_trace_level >= 3)
         {   printf("FCALL_OP finds marker stack: ");
             for (x=0; x<emitter_sp; x++) printf("%d ", emitter_markers[x]);
@@ -1226,9 +1226,9 @@ static void emit_token(token_data t)
     }
     else
     {   arity = 1;
-        if (operators[t.value].usage == IN_U) arity = 2;
+        if (operators[t->value].usage == IN_U) arity = 2;
 
-        if (operators[t.value].precedence == 3)
+        if (operators[t->value].precedence == 3)
         {   arity = 2;
             x = emitter_sp-1;
             if(!emitter_markers[x] && !emitter_bracket_counts[x])
@@ -1242,7 +1242,7 @@ static void emit_token(token_data t)
         }
 
         if (arity > stack_size)
-        {   error_named("Missing operand for", t.text);
+        {   error_named("Missing operand for", t->text);
             while (arity > stack_size)
             {   if (emitter_sp == MAX_EXPRESSION_NODES)
                     memoryerror("MAX_EXPRESSION_NODES", MAX_EXPRESSION_NODES);
@@ -1260,7 +1260,7 @@ static void emit_token(token_data t)
     {
         o1 = emitter_stack[emitter_sp - i];
         if (is_property_t(o1.symtype) ) {
-            switch(t.value) 
+            switch(t->value) 
             {
                 case FCALL_OP:
                 case SETEQUALS_OP: case NOTEQUAL_OP: 
@@ -1283,7 +1283,7 @@ static void emit_token(token_data t)
     {   case 1:
             o1 = emitter_stack[emitter_sp - 1];
             if ((o1.marker == 0) && is_constant_ot(o1.type))
-            {   switch(t.value)
+            {   switch(t->value)
                 {   case UNARY_MINUS_OP: x = -o1.value; goto FoldConstant;
                     case ARTNOT_OP: 
                          if (target_machine == TARGET_ZCODE)
@@ -1315,7 +1315,7 @@ static void emit_token(token_data t)
                   ov2 = (o2.value >= 0x8000) ? (o2.value - 0x10000) : o2.value;
                 }
 
-                switch(t.value)
+                switch(t->value)
                 {
                     case PLUS_OP: x = ov1 + ov2; goto FoldConstantC;
                     case MINUS_OP: x = ov1 - ov2; goto FoldConstantC;
@@ -1325,7 +1325,7 @@ static void emit_token(token_data t)
                         if (ov2 == 0)
                           error("Division of constant by zero");
                         else
-                        if (t.value == DIVIDE_OP) {
+                        if (t->value == DIVIDE_OP) {
                           if (ov2 < 0) {
                             ov1 = -ov1;
                             ov2 = -ov2;
@@ -1380,7 +1380,7 @@ static void emit_token(token_data t)
     if (op_node_number == MAX_EXPRESSION_NODES)
         memoryerror("MAX_EXPRESSION_NODES", MAX_EXPRESSION_NODES);
 
-    ET[op_node_number].operator_number = t.value;
+    ET[op_node_number].operator_number = t->value;
     ET[op_node_number].up = -1;
     ET[op_node_number].down = -1;
     ET[op_node_number].right = -1;
@@ -1435,7 +1435,7 @@ static void emit_token(token_data t)
     {   char folding_error[40];
         int32 ov1 = (o1.value >= 0x8000) ? (o1.value - 0x10000) : o1.value;
         int32 ov2 = (o2.value >= 0x8000) ? (o2.value - 0x10000) : o2.value;
-        switch(t.value)
+        switch(t->value)
         {
             case PLUS_OP:
                 sprintf(folding_error, "%d + %d = %d", ov1, ov2, x);
@@ -2086,7 +2086,7 @@ extern assembly_operand parse_expression(int context)
             case GREATER_P:
                 do
                 {   pop = sr_stack[sr_sp - 1];
-                    emit_token(pop);
+                    emit_token(&pop);
                     sr_sp--;
                 } while (find_prec(&sr_stack[sr_sp-1], &pop) != LOWER_P);
                 break;

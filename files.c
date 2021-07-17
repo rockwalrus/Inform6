@@ -1449,6 +1449,17 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     end_section_w();
 
 
+    /* Memory section */
+    start_section_w(0x05);
+
+    sf_put(0x01); /* segments */
+
+    sf_put(0x00); /* no maximum size */
+    sf_put(0x01); /* minimum size in 64K pages */
+    // WTODO backpatch actual size
+    end_section_w();
+
+
     /* Export section */
     start_section_w(0x07);
 

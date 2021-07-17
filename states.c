@@ -3604,15 +3604,19 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case SWITCH_CODE:
-                 WABORT; match_open_bracket();
+                 match_open_bracket();
                  AO = code_generate(parse_expression(QUANTITY_CONTEXT),
                      QUANTITY_CONTEXT, -1);
                  match_close_bracket();
 
-                 assembleg_store(temp_var1, AO); 
 
-                 parse_code_block(ln = next_label++, continue_label, 1);
-                 assemble_label_no(ln);
+                 assemblew_load(AO);
+		 assemblew_store(temp_var1);
+
+		 assemblew_begin_block(ln = next_label++, void_operand);
+
+                 parse_code_block(ln, continue_label, 1);
+		 assemblew_end_block(ln);
                  return;
 
     /*  -------------------------------------------------------------------- */

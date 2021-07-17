@@ -2914,7 +2914,8 @@ void assemble_jump(int n)
 	break;
 
 	case TARGET_WASM:
-	WABORT;
+	assemblew_branch(br_wc, n);
+	break;
     }
 }
 

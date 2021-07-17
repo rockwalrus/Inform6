@@ -293,6 +293,22 @@ static void compile_alternatives_g(assembly_operand switch_value, int n,
     }
 }
 
+static void compile_alternatives_w(assembly_operand switch_value, int n,
+    int stack_level, int label, int flag)
+{   
+    int the_zc = (flag) ? i32_eq_wc : i32_ne_wc;
+
+    if (n == 1) {
+      assemblew_load(switch_value);
+      assemblew_load(spec_stack[stack_level]); 
+      assemblew_0(the_zc); 
+      assemblew_branch(br_if_wc, label); 
+    }
+    else {
+      error("*** Cannot generate multi-equality tests in Glulx ***");
+    }
+}
+
 static void compile_alternatives(assembly_operand switch_value, int n,
     int stack_level, int label, int flag)
 {
@@ -306,7 +322,8 @@ static void compile_alternatives(assembly_operand switch_value, int n,
     break;
 
     case TARGET_WASM:
-    WABORT;
+    compile_alternatives_w(switch_value, n, stack_level, label, flag);
+    break;
   }
 }
 
@@ -355,14 +372,21 @@ static void parse_switch_spec(assembly_operand switch_value, int label,
                 panic_mode_error_recovery();
                 return;
             case 1: goto GenSpecCode;
-            case 3: if (label_after == -1) label_after = next_label++;
+            case 3: if (label_after == -1) {
+		        label_after = next_label++;
+	                if (target_machine == TARGET_WASM)
+	                    assemblew_begin_block(label_after, void_operand);
+			}
         }
      } while(TRUE);
 
      GenSpecCode:
 
-     if ((spec_sp > max_equality_args) && (label_after == -1))
+     if ((spec_sp > max_equality_args) && (label_after == -1)) {
          label_after = next_label++;
+	 if (target_machine == TARGET_WASM)
+	     assemblew_begin_block(label_after, void_operand);
+     }
 
      if (label_after == -1)
      {   compile_alternatives(switch_value, spec_sp, 0, label, FALSE); return;
@@ -418,13 +442,43 @@ static void parse_switch_spec(assembly_operand switch_value, int label,
 	     break;
 
              case TARGET_WASM:
-	     WABORT;
+             if (i == spec_sp - 2)
+             {   
+		 assemblew_load(switch_value);
+		 assemblew_load(spec_stack[i]);
+		 assemblew_0(i32_lt_s_wc);
+		 assemblew_branch(br_if_wc, label);
+
+		 assemblew_load(switch_value);
+		 assemblew_load(spec_stack[i+1]);
+		 assemblew_0(i32_gt_s_wc);
+		 assemblew_branch(br_if_wc, label);
+             }
+             else
+             {
+
+		 assemblew_load(switch_value);
+		 assemblew_load(spec_stack[i]);
+		 assemblew_0(i32_ge_s_wc);
+		 assemblew_begin_if(next_label, void_operand);
+
+
+		 assemblew_load(switch_value);
+		 assemblew_load(spec_stack[i+1]);
+		 assemblew_0(i32_le_s_wc);
+		 assemblew_branch(br_if_wc, label_after);
+                 assemblew_end_if(next_label++);
+             }
+	     break;
            }
            i = i+2;
          }
      }
 
-     assemble_label_no(label_after);
+     if (target_machine != TARGET_WASM)
+       assemble_label_no(label_after);
+     else
+       assemblew_end_block(label_after);
 }
 
 extern int32 parse_routine(char *source, int embedded_flag, char *name,
@@ -642,7 +696,10 @@ extern void parse_code_block(int break_label, int continue_label,
             }
             if (token_type == SEP_TT && token_value == CLOSE_BRACE_SEP)
             {   if (switch_clause_made && (!default_clause_made))
-                    assemble_label_no(switch_label);
+                    if (target_machine != TARGET_WASM)
+		        assemble_label_no(switch_label);
+		    else
+			assemblew_end_block(switch_label);
                 return;
             }
             if (token_type == EOF_TT)
@@ -662,7 +719,10 @@ extern void parse_code_block(int break_label, int continue_label,
                         {   sequence_point_follows = FALSE;
                             assemble_jump(break_label);
                         }
-                        assemble_label_no(switch_label);
+                        if (target_machine != TARGET_WASM)
+		            assemble_label_no(switch_label);
+		        else
+			    assemblew_end_block(switch_label);
                     }
                     switch_clause_made = TRUE;
 
@@ -701,10 +761,15 @@ extern void parse_code_block(int break_label, int continue_label,
                         {   sequence_point_follows = FALSE;
                             assemble_jump(break_label);
                         }
-                        assemble_label_no(switch_label);
+                        if (target_machine != TARGET_WASM)
+		            assemble_label_no(switch_label);
+		        else
+			    assemblew_end_block(switch_label);
                     }
 
                     switch_label = next_label++;
+		    if (target_machine == TARGET_WASM)
+			assemblew_begin_block(switch_label, void_operand);
                     switch_clause_made = TRUE;
                     put_token_back(); put_token_back();
                     if (unary_minus_flag) put_token_back();

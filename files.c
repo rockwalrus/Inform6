@@ -1277,37 +1277,72 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 #endif
 }
 
+
+static void sf_put_uint_w(uint val) {
+  if (!val) {
+     sf_put(0);
+     return;
+  }
+
+  while (val) {
+    if (val >= 0x80)
+      sf_put((uchar) val | 0x80);
+    else
+      sf_put((uchar) val);
+
+    val >>= 7;
+  }
+}
+
+static void sf_put_uint_sized_w(uint val, uint size) {
+  while (size--) {
+    if (size)
+      sf_put((uchar) val | 0x80);
+    else
+      sf_put((uchar) val);
+
+    val >>= 7;
+  }
+
+  if (val)
+    printf("*** backpatch value does not fit ***\n");
+
+}
+
 static long section_size_pos_w;
+static long section_body_pos_w;
 
-
-static void start_section_w(unsigned char type) {
+static void start_section_w(unsigned char type, uint size_guess) {
    sf_put(type);
 
    section_size_pos_w = ftell(sf_handle);
-   sf_put(0); /* Placeholder for section size */
+   sf_put_uint_w(size_guess);
+   section_body_pos_w = ftell(sf_handle);
 }
 
 static void end_section_w(void) {
    long end_pos = ftell(sf_handle);
+   long body_size = end_pos - section_body_pos_w;
+   long size_size = section_body_pos_w - section_size_pos_w;
 
    /* backpatch section size */
    fseek(sf_handle, section_size_pos_w, SEEK_SET);  
-   sf_put(end_pos - section_size_pos_w - 1);
+   sf_put_uint_sized_w(body_size, size_size);
 
    fseek(sf_handle, 0L, SEEK_END);
 }
 
 static void sf_put_string_w(const char *string) {
     /* length */
-    sf_put(strlen(string));
+    sf_put_uint_w(strlen(string));
 
     /* chars */
     while(*string)
       sf_put(*string++);
 }
 
-static void start_custom_section_w(const char *name) {
-    start_section_w(0x00);
+static void start_custom_section_w(const char *name, uint size_guess) {
+    start_section_w(0x00, size_guess);
     
     /* section name */
     sf_put_string_w(name);
@@ -1384,7 +1419,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0);
 
     /* Custom Inform section */
-    start_custom_section_w("Inform");
+    start_custom_section_w("Inform", 31);
     
     /* Eight byte layout identifier */
     sf_put('I'); sf_put('n'); sf_put('f'); sf_put('o');
@@ -1413,7 +1448,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Type section */
-    start_section_w(0x01);
+    start_section_w(0x01, 15);
 
     sf_put(0x03);
 
@@ -1438,7 +1473,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Function section */
-    start_section_w(0x03);
+    start_section_w(0x03, 5);
 
     sf_put(0x04);
     sf_put(0x00);
@@ -1450,7 +1485,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Memory section */
-    start_section_w(0x05);
+    start_section_w(0x05, 3);
 
     sf_put(0x01); /* segments */
 
@@ -1461,9 +1496,9 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Export section */
-    start_section_w(0x07);
+    start_section_w(0x07, 16*no_named_routines);
 
-    sf_put(no_named_routines); /* num exports */
+    sf_put_uint_w(no_named_routines); /* num exports */
  
     for (i=0; i<no_named_routines; i++) {
         symbol_name = (char *)symbs[named_routine_symbols[i]];
@@ -1471,13 +1506,13 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
         sf_put_string_w(symbol_name); /* name */
         
 	sf_put(0x00); /* export kind */
-        sf_put(svals[named_routine_symbols[i]]); /* func index */
+        sf_put_uint_w(svals[named_routine_symbols[i]]); /* func index */
     }
 
     end_section_w();
 
     /* Code section */
-    start_section_w(0x0a);
+    start_section_w(0x0a, zmachine_pc);
 
     sf_put(0x04);
 
@@ -1952,9 +1987,10 @@ printf("marker %d\n", backpatch_marker);
     }
 
 #endif
+    end_section_w();
     
     /* Producers section (see https://github.com/WebAssembly/tool-conventions/blob/master/ProducersSection.md) */
-    start_custom_section_w("producers");
+    start_custom_section_w("producers", 59);
 
     sf_put(2); /* field count */
 

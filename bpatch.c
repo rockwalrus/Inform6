@@ -343,7 +343,6 @@ static int32 backpatch_value_w(int32 value)
     switch(backpatch_marker)
     {
         case STRING_MV:
-		WABORT;
             if (value <= 0 || value > no_strings)
               compiler_error("Illegal string marker.");
             value = strings_offset + compressed_offsets[value-1]; break;
@@ -685,6 +684,61 @@ extern void backpatch_zmachine_image_g(void)
                     backpatch_marker, zmachine_area, offset);
         }
     }
+}
+
+extern void backpatch_zmachine_image_w(void)
+{
+#if 0
+    int bm = 0, zmachine_area; int32 offset, value, addr = 0;
+    backpatch_error_flag = FALSE;
+    while (bm < zmachine_backpatch_size)
+    {   backpatch_marker
+            = read_byte_from_memory_block(&zmachine_backpatch_table, bm);
+        zmachine_area
+            = read_byte_from_memory_block(&zmachine_backpatch_table, bm+1);
+        offset = read_byte_from_memory_block(&zmachine_backpatch_table, bm+2);
+        offset = (offset << 8) |
+          read_byte_from_memory_block(&zmachine_backpatch_table, bm+3);
+        offset = (offset << 8) |
+          read_byte_from_memory_block(&zmachine_backpatch_table, bm+4);
+        offset = (offset << 8) |
+          read_byte_from_memory_block(&zmachine_backpatch_table, bm+5);
+            bm += 6;
+
+        /* printf("-MV %d ZA %d Off %06x\n", backpatch_marker, zmachine_area, offset);  */
+
+            switch(zmachine_area) {   
+        case PROP_DEFAULTS_ZA:   addr = prop_defaults_offset+4; break;
+        case PROP_ZA:            addr = prop_values_offset; break;
+        case INDIVIDUAL_PROP_ZA: addr = individuals_offset; break;
+        case DYNAMIC_ARRAY_ZA:   addr = arrays_offset; break;
+        case GLOBALVAR_ZA:       addr = variables_offset; break;
+        /* STATIC_ARRAY_ZA is in ROM and therefore not handled here */
+        default:
+          if (no_link_errors == 0)
+            if (compiler_error("Illegal area to backpatch"))
+              backpatch_error_flag = TRUE;
+        }
+        addr = addr + offset - Write_RAM_At;
+
+        value = (zmachine_paged_memory[addr] << 24)
+                | (zmachine_paged_memory[addr+1] << 16)
+                | (zmachine_paged_memory[addr+2] << 8)
+                | (zmachine_paged_memory[addr+3]);
+        value = backpatch_value_g(value);
+        zmachine_paged_memory[addr] = (value >> 24) & 0xFF;
+        zmachine_paged_memory[addr+1] = (value >> 16) & 0xFF;
+        zmachine_paged_memory[addr+2] = (value >> 8) & 0xFF;
+        zmachine_paged_memory[addr+3] = (value) & 0xFF;
+
+        if (backpatch_error_flag)
+        {   backpatch_error_flag = FALSE;
+            if (no_link_errors == 0)
+                printf("*** MV %d ZA %d Off %04x ***\n",
+                    backpatch_marker, zmachine_area, offset);
+        }
+    }
+#endif
 }
 
 /* ========================================================================= */

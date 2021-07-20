@@ -2345,6 +2345,7 @@ extern int   backpatch_marker, backpatch_error_flag;
 extern int32 backpatch_value(int32 value);
 extern void  backpatch_zmachine_image_z(void);
 extern void  backpatch_zmachine_image_g(void);
+extern void  backpatch_zmachine_image_w(void);
 extern void  backpatch_zmachine(int mv, int zmachine_area, int32 offset);
 
 /* ------------------------------------------------------------------------- */

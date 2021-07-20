@@ -215,6 +215,7 @@ extern void make_abbreviation(char *text)
 extern int32 compile_string(char *b, int strctx)
 {   int i, j; uchar *c;
 
+	printf("Compiling '%s'.\n", b);
     /* In Z-code, abbreviations go in the low memory pool (0x100). So
        do strings explicitly defined with the Lowstring directive.
        (In Glulx, the in_low_memory flag is ignored.) */

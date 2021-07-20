@@ -1741,7 +1741,21 @@ printf("marker %d\n", backpatch_marker);
 
     end_section_w();
 
-#if 0
+    start_section_w(0xb, 200);
+
+    sf_put(1); /* number of segments */
+
+    sf_put(0x00); /* active, memidx 0 */
+
+    /* code to determine offset */
+    sf_put(0x41); /* i32.const */
+    sf_put(0);
+
+    sf_put(0x0b); /* end */
+
+    sf_put_uint_w(487); /* size */
+
+
     /*  (4)  Output the static strings area.                                 */
 
     if (temporary_files_switch) {
@@ -1898,6 +1912,7 @@ printf("marker %d\n", backpatch_marker);
 
     }
     
+#if 0
     /*  (5)  Output static arrays (if any). */
     {
         /* We have to backpatch entries mentioned in staticarray_backpatch_table. */

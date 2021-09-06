@@ -919,13 +919,6 @@ static void explain_parameter(char *command)
   arguments) allowed in a procedure. (Glulx only)\n");
         return;
     }
-<<<<<<< HEAD
-    if (strcmp(command,"MAX_GLOBAL_VARIABLES")==0)
-    {   printf(
-"  MAX_GLOBAL_VARIABLES is the number of global variables allowed in the \n\
-  program. (Glulx only)\n");
-        return;
-    }
     if (strcmp(command,"MAX_NUM_STATIC_STRINGS")==0)
     {
         printf(
@@ -948,8 +941,6 @@ static void explain_parameter(char *command)
   for various structures.\n");
         return;
     }
-=======
->>>>>>> cc1dfc0 (Remove MAX_GLOBAL_VARIABLES entirely.)
     if (strcmp(command,"MAX_STACK_SIZE")==0)
     {
         printf(

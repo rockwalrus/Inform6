@@ -1490,7 +1490,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0x01); /* segments */
 
     sf_put(0x00); /* no maximum size */
-    sf_put(0x01); /* minimum size in 64K pages */
+    sf_put(1); /* minimum size in 64K pages */
     // WTODO backpatch actual size
     end_section_w();
 
@@ -1749,11 +1749,11 @@ printf("marker %d\n", backpatch_marker);
 
     /* code to determine offset */
     sf_put(0x41); /* i32.const */
-    sf_put(0);
+    sf_put_uint_w(Write_Strings_At);
 
     sf_put(0x0b); /* end */
 
-    sf_put_uint_w(487); /* size */
+    sf_put_uint_w(Write_RAM_At - Write_Strings_At); /* size */
 
 
     /*  (4)  Output the static strings area.                                 */

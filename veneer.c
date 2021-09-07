@@ -69,6 +69,7 @@ extern void compile_initial_routine(void)
         sequence_point_follows = FALSE;
 
         assemblew_1(call_wc, AO);
+	assemblew_0(drop_wc);
         assemblew_0(return_wc);
 	break;
     }

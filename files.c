@@ -1506,8 +1506,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
    
     sf_put(0x04);
     sf_put(0x00);
-    sf_put(0x00);
-    sf_put(0x01);
+    //sf_put(0x01);
     sf_put(0x01);
 
     end_section_w();
@@ -1553,7 +1552,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     /* Code section */
     start_section_w(0x0a, zmachine_pc);
 
-    sf_put(0x04);
+    sf_put(0x03);
 
     /* RAMSTART */
 #if 0

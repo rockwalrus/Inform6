@@ -1448,9 +1448,9 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Type section */
-    start_section_w(0x01, 15);
+    start_section_w(0x01, 26);
 
-    sf_put(0x03);
+    sf_put(0x05);
 
     sf_put(0x60);
     sf_put(0x00);
@@ -1469,12 +1469,41 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put(0x7f);
     sf_put(0x00);
 
+    sf_put(0x60);
+    sf_put(0x04);
+    sf_put(0x7f);
+    sf_put(0x7f);
+    sf_put(0x7f);
+    sf_put(0x7f);
+    sf_put(0x01);
+    sf_put(0x7f);
+
+    sf_put(0x60);
+    sf_put(0x00);
+    sf_put(0x00);
+
+    end_section_w();
+ 
+
+    /* Import section */
+    start_section_w(0x02, 26);
+
+
+    sf_put(1); /* num imports */
+    
+    sf_put_string_w("wasi_unstable"); /* module name */
+    sf_put_string_w("fd_write"); /* field name */
+    sf_put(0x0); /* import kind (function) */
+    sf_put(3); /* function type */
+
     end_section_w();
 
 
     /* Function section */
     start_section_w(0x03, 5);
 
+    sf_put(0x03);
+   
     sf_put(0x04);
     sf_put(0x00);
     sf_put(0x00);
@@ -1496,9 +1525,9 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
 
     /* Export section */
-    start_section_w(0x07, 16*no_named_routines);
+    start_section_w(0x07, 16*no_named_routines + 18);
 
-    sf_put_uint_w(no_named_routines); /* num exports */
+    sf_put_uint_w(no_named_routines + 2); /* num exports */
  
     for (i=0; i<no_named_routines; i++) {
         symbol_name = (char *)symbs[named_routine_symbols[i]];
@@ -1508,6 +1537,16 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 	sf_put(0x00); /* export kind */
         sf_put_uint_w(svals[named_routine_symbols[i]]); /* func index */
     }
+
+    sf_put_string_w("memory"); /* name */
+    sf_put(0x2); /* export kind (memory) */
+    sf_put(0); /* memory index */ 
+
+    /* wasi expects to call an export named "_start", so export "__Main" accprdingly. */
+
+    sf_put_string_w("_start");
+    sf_put(0x0);
+    sf_put(1);
 
     end_section_w();
 

@@ -1647,7 +1647,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
           read_byte_from_memory_block(&zcode_backpatch_table, i);
         data_len =
           read_byte_from_memory_block(&zcode_backpatch_table, i+1);
-printf("marker %d\n", backpatch_marker);
+//printf("marker %d\n", backpatch_marker);
         /* All code up until the next backpatch marker gets flushed out
            as-is. (Unless we're in a stripped-out function.) */
         while (j<offset) {

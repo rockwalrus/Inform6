@@ -412,8 +412,7 @@ static void begin_pass(void)
     files_begin_pass();
 
     endofpass_flag = FALSE;
-    line_trace_level = 3; expr_trace_level = 1;
-    asm_trace_level = 4; //asm_trace_setting;
+    asm_trace_level = asm_trace_setting;
     linker_trace_level = linker_trace_setting;
     if (listing_switch) line_trace_level=1;
 

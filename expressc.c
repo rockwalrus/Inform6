@@ -1480,7 +1480,7 @@ static void generate_code_from(int n, int void_flag)
     }
 
     opnum = ET[n].operator_number;
-    printf("opnum %d\n", opnum);
+    //printf("opnum %d\n", opnum);
 
     if (target_machine == TARGET_WASM && ET[n].must_branch && ET[n].condition_type && (above == -1 || !ET[above].must_branch)) {
       assemblew_begin_block(next_label++, i32_operand);

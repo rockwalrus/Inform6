@@ -736,6 +736,268 @@ static void parse_print_g(int finally_return)
     }
 }
 
+static void parse_print_w(int finally_return)
+{   int count = 0; assembly_operand AO, AO2;
+
+    /*  print <printlist> -------------------------------------------------- */
+    /*  print_ret <printlist> ---------------------------------------------- */
+    /*  <literal-string> --------------------------------------------------- */
+    /*                                                                       */
+    /*  <printlist> is a comma-separated list of items:                      */
+    /*                                                                       */
+    /*       <literal-string>                                                */
+    /*       <other-expression>                                              */
+    /*       (char) <expression>                                             */
+    /*       (address) <expression>                                          */
+    /*       (string) <expression>                                           */
+    /*       (a) <expression>                                                */
+    /*       (A) <expression>                                                */
+    /*       (the) <expression>                                              */
+    /*       (The) <expression>                                              */
+    /*       (name) <expression>                                             */
+    /*       (number) <expression>                                           */
+    /*       (property) <expression>                                         */
+    /*       (<routine>) <expression>                                        */
+    /*       (object) <expression>     (for use in low-level code only)      */
+    /* --------------------------------------------------------------------- */
+
+    do
+    {   
+        if ((token_type == SEP_TT) && (token_value == SEMICOLON_SEP)) break;
+        switch(token_type)
+        {   case DQ_TT:
+              /* We can't compile a string into the instruction,
+                 so this always goes into the string area. */
+              {   
+		  assemblew_load(zero_operand);
+		  INITAOT(&AO, CONSTANT_OT);
+                  AO.marker = STRING_MV;
+                  AO.value  = compile_string(token_text, STRCTX_GAME);
+                  assemblew_load(AO);
+		  assemblew_load(one_operand);
+		  assemblew_0(i32_add_wc);
+		  assemblew_2(i32_store_wc, two_operand, zero_operand);
+
+		  assemblew_load(four_operand);
+		  INITAOTV(&AO, CONSTANT_OT, strlen(token_text));
+		  assemblew_load(AO);
+		  assemblew_2(i32_store_wc, two_operand, zero_operand);
+
+		  assemblew_load(one_operand);
+		  assemblew_load(zero_operand);
+		  assemblew_load(one_operand);
+		  assemblew_load(zero_operand);
+                  
+		  assemblew_1(call_wc, zero_operand);
+
+		  assemblew_0(drop_wc);
+
+                  if (finally_return)
+                  {   get_next_token();
+			  WABORT;
+                      if ((token_type == SEP_TT)
+                          && (token_value == SEMICOLON_SEP))
+                      {   INITAOTV(&AO, BYTECONSTANT_OT, 0x0A);
+                          assembleg_1(streamchar_gc, AO); 
+                          INITAOTV(&AO, BYTECONSTANT_OT, 1);
+                          assembleg_1(return_gc, AO); 
+                          return;
+                      }
+                      put_token_back();
+                  }
+                  break;
+              }
+              break;
+
+            case SEP_TT:
+	      WABORT
+              if (token_value == OPENB_SEP)
+              {   misc_keywords.enabled = TRUE;
+                  get_next_token();
+                  get_next_token();
+                  if ((token_type == SEP_TT) && (token_value == CLOSEB_SEP))
+                  {   assembly_operand AO1;
+                      int ln, ln2;
+
+                      put_token_back(); put_token_back();
+                      local_variables.enabled = FALSE;
+                      get_next_token();
+                      misc_keywords.enabled = FALSE;
+                      local_variables.enabled = TRUE;
+
+                      if ((token_type == STATEMENT_TT)
+                          &&(token_value == STRING_CODE))
+                      {   token_type = MISC_KEYWORD_TT;
+                          token_value = STRING_MK;
+                      }
+
+                      switch(token_type)
+                      {
+                        case MISC_KEYWORD_TT:
+			  WABORT
+                          switch(token_value)
+                          {   case CHAR_MK:
+                                  if (runtime_error_checking_switch)
+                                  {   AO = veneer_routine(RT__ChPrintC_VR);
+                                      goto PrintByRoutine;
+                                  }
+                                  get_next_token();
+                                  AO1 = code_generate(
+                                      parse_expression(QUANTITY_CONTEXT),
+                                      QUANTITY_CONTEXT, -1);
+                                  if ((AO1.type == LOCALVAR_OT) && (AO1.value == 0))
+                                  {   assembleg_2(stkpeek_gc, zero_operand, 
+                                      stack_pointer);
+                                  }
+                                  INITAOTV(&AO2, HALFCONSTANT_OT, 0x100);
+                                  assembleg_2_branch(jgeu_gc, AO1, AO2, 
+                                      ln = next_label++);
+                                  ln2 = next_label++;
+                                  assembleg_1(streamchar_gc, AO1);
+                                  assembleg_jump(ln2);
+                                  assemble_label_no(ln);
+                                  assembleg_1(streamunichar_gc, AO1);
+                                  assemble_label_no(ln2);
+                                  goto PrintTermDone;
+                              case ADDRESS_MK:
+                                  if (runtime_error_checking_switch)
+                                      AO = veneer_routine(RT__ChPrintA_VR);
+                                  else
+                                      AO = veneer_routine(Print__Addr_VR);
+                                  goto PrintByRoutine;
+                              case STRING_MK:
+                                  if (runtime_error_checking_switch)
+                                  {   AO = veneer_routine(RT__ChPrintS_VR);
+                                      goto PrintByRoutine;
+                                  }
+                                  get_next_token();
+                                  AO1 = code_generate(
+                                      parse_expression(QUANTITY_CONTEXT),
+                                      QUANTITY_CONTEXT, -1);
+                                  assembleg_1(streamstr_gc, AO1);
+                                  goto PrintTermDone;
+                              case OBJECT_MK:
+                                  if (runtime_error_checking_switch)
+                                  {   AO = veneer_routine(RT__ChPrintO_VR);
+                                      goto PrintByRoutine;
+                                  }
+                                  get_next_token();
+                                  AO1 = code_generate(
+                                      parse_expression(QUANTITY_CONTEXT),
+                                      QUANTITY_CONTEXT, -1);
+                                  INITAOT(&AO2, BYTECONSTANT_OT);
+                                  AO2.value = GOBJFIELD_NAME();
+                                  assembleg_3(aload_gc, AO1, AO2, 
+                                    stack_pointer);
+                                  assembleg_1(streamstr_gc, stack_pointer);
+                                  goto PrintTermDone;
+                              case THE_MK:
+                                  AO = veneer_routine(DefArt_VR);
+                                  goto PrintByRoutine;
+                              case AN_MK:
+                              case A_MK:
+                                  AO = veneer_routine(InDefArt_VR);
+                                  goto PrintByRoutine;
+                              case CAP_THE_MK:
+                                  AO = veneer_routine(CDefArt_VR);
+                                  goto PrintByRoutine;
+                              case CAP_A_MK:
+                                  AO = veneer_routine(CInDefArt_VR);
+                                  goto PrintByRoutine;
+                              case NAME_MK:
+                                  AO = veneer_routine(PrintShortName_VR);
+                                  goto PrintByRoutine;
+                              case NUMBER_MK:
+                                  AO = veneer_routine(EnglishNumber_VR);
+                                  goto PrintByRoutine;
+                              case PROPERTY_MK:
+                                  AO = veneer_routine(Print__Pname_VR);
+                                  goto PrintByRoutine;
+                              default:
+               error_named("A reserved word was used as a print specification:",
+                                      token_text);
+                          }
+                          break;
+
+                        case SYMBOL_TT:
+			  WABORT
+                          if (sflags[token_value] & UNKNOWN_SFLAG)
+                          {   INITAOT(&AO, CONSTANT_OT);
+                              AO.value = token_value;
+                              AO.marker = SYMBOL_MV;
+                              AO.symindex = token_value;
+                              AO.symtype = stypes[token_value];
+                              AO.symflags = sflags[token_value];
+                          }
+                          else
+                          {   INITAOT(&AO, CONSTANT_OT);
+                              AO.value = svals[token_value];
+                              AO.marker = IROUTINE_MV;
+                              AO.symindex = token_value;
+                              AO.symtype = stypes[token_value];
+                              AO.symflags = sflags[token_value];
+                              if (stypes[token_value] != ROUTINE_T)
+                                ebf_error("printing routine name", token_text);
+                          }
+                          sflags[token_value] |= USED_SFLAG;
+
+                          PrintByRoutine:
+
+                          get_next_token();
+                          INITAOT(&AO2, ZEROCONSTANT_OT);
+                          assembleg_call_1(AO,
+                            code_generate(parse_expression(QUANTITY_CONTEXT),
+                              QUANTITY_CONTEXT, -1),
+                            AO2);
+                          goto PrintTermDone;
+
+                        default: ebf_error("print specification", token_text);
+                          WABORT; get_next_token();
+                          assembleg_1(streamnum_gc,
+                          code_generate(parse_expression(QUANTITY_CONTEXT),
+                                QUANTITY_CONTEXT, -1));
+                          goto PrintTermDone;
+                      }
+                  }
+                  put_token_back(); put_token_back(); put_token_back();
+                  misc_keywords.enabled = FALSE;
+                  assembleg_1(streamnum_gc,
+                      code_generate(parse_expression(QUANTITY_CONTEXT),
+                          QUANTITY_CONTEXT, -1));
+                  break;
+              }
+
+            default:
+              WABORT; put_token_back(); misc_keywords.enabled = FALSE;
+              assembleg_1(streamnum_gc,
+                  code_generate(parse_expression(QUANTITY_CONTEXT),
+                      QUANTITY_CONTEXT, -1));
+              break;
+        }
+
+        PrintTermDone: misc_keywords.enabled = FALSE;
+
+        count++;
+        get_next_token();
+        if ((token_type == SEP_TT) && (token_value == SEMICOLON_SEP)) break;
+        if ((token_type != SEP_TT) || (token_value != COMMA_SEP))
+        {   ebf_error("comma", token_text);
+            panic_mode_error_recovery(); return;
+        }
+        else get_next_token();
+    } while(TRUE);
+
+    if (count == 0) ebf_error("something to print", token_text);
+    if (finally_return)
+    {
+        WABORT;
+	INITAOTV(&AO, BYTECONSTANT_OT, 0x0A);
+        assembleg_1(streamchar_gc, AO); 
+        INITAOTV(&AO, BYTECONSTANT_OT, 1);
+        assembleg_1(return_gc, AO); 
+    }
+}
+
 static void parse_statement_z(int break_label, int continue_label)
 {   int ln, ln2, ln3, ln4, flag;
     assembly_operand AO, AO2, AO3, AO4;
@@ -3432,11 +3694,11 @@ static void parse_statement_w(int break_label, int continue_label)
     /*  -------------------------------------------------------------------- */
 
         case PRINT_CODE:
-            WABORT; get_next_token();
-            parse_print_g(FALSE); return;
+            get_next_token();
+            parse_print_w(FALSE); return;
         case PRINT_RET_CODE:
-            WABORT; get_next_token();
-            parse_print_g(TRUE); return;
+            get_next_token();
+            parse_print_w(TRUE); return;
 
     /*  -------------------------------------------------------------------- */
     /*  quit --------------------------------------------------------------- */

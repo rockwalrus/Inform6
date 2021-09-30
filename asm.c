@@ -67,6 +67,11 @@ variableinfo *variables;           /* The allocated size is
                                       Local variables first, then globals.   */
 memory_list variables_memlist;
 
+
+wasm_type *wasm_types;
+uint32 no_wasm_types;
+static memory_list wasm_types_memlist;
+
 assembly_instruction AI;           /* A structure used to hold the full
                                       specification of a single Z-code
                                       instruction: effectively this is the
@@ -2107,6 +2112,8 @@ extern int32 assemble_routine_header(int no_locals,
       i = no_named_routines++;
       named_routine_symbols[i] = the_symbol;
 
+      get_wasm_type(no_locals, 1);
+
       byteout(0xee, 0); /* size */
 
       /* non-parameter locals */
@@ -3405,6 +3412,20 @@ void assembleg_jump(int n)
   }
 }
 
+uint32 get_wasm_type(uint32 no_params, uint32 no_returns) {
+  uint32 i;
+
+  for (i=0; i < no_wasm_types; i++)
+    if (wasm_types[i].no_params == no_params && wasm_types[i].no_returns == no_returns)
+      return i;
+
+  ensure_memory_list_available(&wasm_types_memlist, ++no_wasm_types);
+  wasm_types[i].no_params  = no_params;
+  wasm_types[i].no_returns = no_returns;
+
+  return i;
+}
+
 void assemblew_0(int internal_number)
 {   AI.internal_number = internal_number;
     AI.operand_count = 0;
@@ -4106,6 +4127,12 @@ extern void init_asm_vars(void)
     label_moved_error_already_given = FALSE;
 
     initialise_memory_block(&zcode_area);
+    if (target_machine == TARGET_WASM) {
+        initialise_memory_list(&wasm_types_memlist,
+            sizeof(wasm_type), 20, (void**)&wasm_types,
+            "WebAssembly type definitions");
+	no_wasm_types = 0;
+    }
 }
 
 extern void asm_allocate_arrays(void)
@@ -4153,8 +4180,10 @@ extern void asm_free_arrays(void)
     my_free(&named_routine_symbols, "named routine symbols");
     deallocate_memory_block(&zcode_area);
     
-    if (target_machine == TARGET_WASM)
+    if (target_machine == TARGET_WASM) {
 	deallocate_memory_stack(&blocks_stack);
+	deallocate_memory_list(&wasm_types_memlist);
+    }
 }
 
 /* ========================================================================= */

@@ -56,7 +56,7 @@ static void make_operands(void)
     case TARGET_WASM:
     INITAOT(&stack_pointer, STACK_OT);
 
-    INITAOTV(&temp_var1, LOCALVAR_OT, -1); /* Set dynamically in assemble_routine_heater */
+    INITAOTV(&temp_var1, LOCALVAR_OT, -1); /* Set dynamically in assemble_routine_header */
     INITAOTV(&temp_var2, LOCALVAR_OT, -1);
     INITAOTV(&temp_var3, LOCALVAR_OT, -1);
     /*INITAOTV(&temp_var4, LOCALVAR_OT, MAX_LOCAL_VARIABLES+3);*/
@@ -70,7 +70,7 @@ static void make_operands(void)
     INITAOTV(&valueless_operand, OMITTED_OT, 0);
     INITAOTV(&void_operand, BLOCKTYPE_OT, 0x40); 
     INITAOTV(&i32_operand,  BLOCKTYPE_OT, 0x7f);
-    INITAOTV(&p1rv_operand,  BLOCKTYPE_OT, 2);
+    INITAOTV(&p1rv_operand, BLOCKTYPE_OT, get_wasm_type(1, 0));
     break;
   }
 }

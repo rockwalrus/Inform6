@@ -1447,40 +1447,28 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     end_section_w();
 
 
+    /* make sure fd_write's type exists */
+    get_wasm_type(4, 1);
+    get_wasm_type(0, 0);
+
     /* Type section */
-    start_section_w(0x01, 26);
+    start_section_w(0x01, 20 * no_wasm_types);
 
-    sf_put(0x05);
+    sf_put_uint_w(no_wasm_types);
 
-    sf_put(0x60);
-    sf_put(0x00);
-    sf_put(0x01);
-    sf_put(0x7f);
+    for (i = 0; i < no_wasm_types; i++) {
+      sf_put(0x60); /* function */
 
-    sf_put(0x60);
-    sf_put(0x02);
-    sf_put(0x7f);
-    sf_put(0x7f);
-    sf_put(0x01);
-    sf_put(0x7f);
+      sf_put_uint_w(wasm_types[i].no_params);
 
-    sf_put(0x60);
-    sf_put(0x01);
-    sf_put(0x7f);
-    sf_put(0x00);
+      for (j = 0; j < wasm_types[i].no_params; j++)
+        sf_put(0x7f); /* you can have any type you want as long as it's i32. */
 
-    sf_put(0x60);
-    sf_put(0x04);
-    sf_put(0x7f);
-    sf_put(0x7f);
-    sf_put(0x7f);
-    sf_put(0x7f);
-    sf_put(0x01);
-    sf_put(0x7f);
+      sf_put_uint_w(wasm_types[i].no_returns);
 
-    sf_put(0x60);
-    sf_put(0x00);
-    sf_put(0x00);
+      for (j = 0; j < wasm_types[i].no_returns; j++)
+        sf_put(0x7f);
+    }
 
     end_section_w();
  
@@ -1494,7 +1482,7 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
     sf_put_string_w("wasi_unstable"); /* module name */
     sf_put_string_w("fd_write"); /* field name */
     sf_put(0x0); /* import kind (function) */
-    sf_put(3); /* function type */
+    sf_put(get_wasm_type(4, 1)); /* function type */
 
     end_section_w();
 
@@ -1504,10 +1492,9 @@ game features require version 0x%08lx", (long)requested_glulx_version, (long)Ver
 
     sf_put(0x03);
    
-    sf_put(0x04);
-    sf_put(0x00);
-    //sf_put(0x01);
-    sf_put(0x01);
+    sf_put(get_wasm_type(0, 0));
+    sf_put(get_wasm_type(0, 1));
+    sf_put(get_wasm_type(2, 1));
 
     end_section_w();
 

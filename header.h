@@ -935,6 +935,11 @@ typedef struct memory_stack_s
     void **toppointer;  /* pointer to keep in sync */
 } memory_stack;
 
+typedef struct wasm_type_t {
+    uint32 no_params;
+    uint32 no_returns;
+} wasm_type;
+
 /* This serves for all target machine instructions. Glulx and WebAssembly don't use
    the text, store_variable_number, branch_label_number, or branch_flag
    fields. */
@@ -2249,12 +2254,15 @@ extern memory_list variables_memlist;
 extern int   next_label, no_sequence_points;
 extern assembly_instruction AI;
 extern int32 *named_routine_symbols;
+extern wasm_type *wasm_types;
+extern uint32 no_wasm_types;
 
 extern void print_operand(const assembly_operand *o, int annotate);
 extern char *variable_name(int32 i);
 extern void set_constant_ot(assembly_operand *AO);
 extern int  is_constant_ot(int otval);
 extern int  is_variable_ot(int otval);
+extern uint32 get_wasm_type(uint32 no_params, uint32 no_returns);
 extern void assemblez_instruction(assembly_instruction *a);
 extern void assembleg_instruction(assembly_instruction *a);
 extern void assemble_label_no(int n);
